@@ -1,0 +1,12 @@
+root = true
+
+[*.cs]
+# Always require braces on control flow statements (if, for, foreach, while, etc.)
+csharp_prefer_braces = true:warning
+
+# Namespace style
+csharp_style_namespace_declarations = file_scoped:warning
+
+# Expression-bodied members — allow but don't require
+csharp_style_expression_bodied_methods = when_on_single_line:suggestion
+csharp_style_expression_bodied_properties = when_on_single_line:suggestion
