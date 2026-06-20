@@ -1,7 +1,9 @@
 using ContextBridge.Cli;
+using ContextBridge.Infrastructure.Embedding;
 using ContextBridge.Infrastructure.Security;
 using ContextBridge.Service;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -49,6 +51,13 @@ builder.Services.AddDataProtection()
     .SetApplicationName("ContextBridge");
 
 builder.Services.AddSingleton<TokenStore>();
+
+var modelDir = Path.Combine(AppContext.BaseDirectory, "models", "all-MiniLM-L6-v2");
+builder.Services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(
+    new BundledOnnxEmbeddingGenerator(
+        Path.Combine(modelDir, "model_quint8_avx2.onnx"),
+        Path.Combine(modelDir, "vocab.txt")));
+
 builder.Services.AddHostedService<Worker>();
 builder.Services.AddWindowsService(options => options.ServiceName = "ContextBridge");
 

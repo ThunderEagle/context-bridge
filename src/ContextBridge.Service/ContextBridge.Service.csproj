@@ -19,4 +19,12 @@
     <ProjectReference Include="..\ContextBridge.Infrastructure\ContextBridge.Infrastructure.csproj" />
     <ProjectReference Include="..\ContextBridge.Cli\ContextBridge.Cli.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\..\models\**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>models\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </Content>
+  </ItemGroup>
+
 </Project>

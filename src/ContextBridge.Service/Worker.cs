@@ -1,16 +1,20 @@
+using Microsoft.Extensions.AI;
+
 namespace ContextBridge.Service;
 
-public class Worker(ILogger<Worker> logger) : BackgroundService
+public class Worker(
+    ILogger<Worker> logger,
+    IEmbeddingGenerator<string, Embedding<float>> embeddingGenerator) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            if (logger.IsEnabled(LogLevel.Information))
-            {
-                logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
-            }
-            await Task.Delay(1000, stoppingToken);
-        }
+        // Warm-up: run one inference to load the ONNX model into memory before clients connect
+        var probe = await embeddingGenerator.GenerateAsync(["warm-up"], cancellationToken: stoppingToken);
+        logger.LogInformation(
+            "Embedding model loaded (all-MiniLM-L6-v2, {Dims} dims)",
+            probe[0].Vector.Length);
+
+        // Placeholder: service loop will be replaced by Kestrel/MCP host in Phase 4
+        await Task.Delay(Timeout.Infinite, stoppingToken);
     }
 }

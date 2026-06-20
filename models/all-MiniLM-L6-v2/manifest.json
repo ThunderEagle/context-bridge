@@ -1,0 +1,11 @@
+{
+  "modelId": "all-MiniLM-L6-v2",
+  "variant": "onnx-quint8-avx2",
+  "modelFile": "model_quint8_avx2.onnx",
+  "vocabFile": "vocab.txt",
+  "source": "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/onnx/model_quint8_avx2.onnx",
+  "vocabSource": "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/vocab.txt",
+  "sha256": "B941BF19F1F1283680F449FA6A7336BB5600BDCD5F84D10DDC5CD72218A0FD21",
+  "dimensions": 384,
+  "maxTokens": 128
+}
