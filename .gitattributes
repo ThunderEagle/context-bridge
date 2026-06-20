@@ -1,0 +1,11 @@
+# Normalize line endings to LF in the repository; checkout as-is on Windows
+* text=auto eol=lf
+
+# Force binary treatment for native binaries and model files
+*.dll binary
+*.exe binary
+*.pdb binary
+*.onnx binary
+*.db binary
+*.db-shm binary
+*.db-wal binary

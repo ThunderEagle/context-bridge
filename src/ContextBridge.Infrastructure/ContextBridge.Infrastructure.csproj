@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\ContextBridge.Core\ContextBridge.Core.csproj" />
+  </ItemGroup>
+
+</Project>

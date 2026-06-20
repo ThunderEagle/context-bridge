@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ContextBridge.Core\ContextBridge.Core.csproj" />
+    <ProjectReference Include="..\ContextBridge.Infrastructure\ContextBridge.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ContextBridge.Cli/ContextBridge.Cli.csproj" />
+    <Project Path="src/ContextBridge.Core/ContextBridge.Core.csproj" />
+    <Project Path="src/ContextBridge.Infrastructure/ContextBridge.Infrastructure.csproj" />
+    <Project Path="src/ContextBridge.Service/ContextBridge.Service.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ContextBridge.Tests/ContextBridge.Tests.csproj" />
+  </Folder>
+</Solution>

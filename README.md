@@ -13,7 +13,7 @@ Context-Bridge solves the problem of AI assistant statefulness across multiple t
 
 ## Key Architecture Decisions
 
-See [DESIGN.md](DESIGN.md) for the full design document. Key highlights:
+See [DESIGN.md](docs/DESIGN.md) for the full design document. Key highlights:
 
 - **Language:** .NET 10 Worker Service (Windows Service integration, clean distribution story)
 - **Embeddings:** all-MiniLM-L6-v2 via Microsoft.ML.OnnxRuntime (in-process, no Ollama)

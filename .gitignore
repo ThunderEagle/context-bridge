@@ -1,0 +1,58 @@
+# Build outputs
+bin/
+obj/
+out/
+
+# NuGet packages
+*.nupkg
+*.snupkg
+packages/
+.nuget/
+
+# Visual Studio / Rider
+.vs/
+.idea/
+*.user
+*.suo
+*.userprefs
+*.sln.docstateprefs
+*.DotSettings.user
+
+# Rider / ReSharper
+_ReSharper*/
+*.resharper
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Test results
+TestResults/
+coverage/
+*.trx
+*.coveragexml
+
+# dotnet tool output
+publish/
+
+# Models — ONNX binary files are committed intentionally under models/
+# but exclude any accidental downloads elsewhere
+*.onnx
+!models/**/*.onnx
+
+# Local dev secrets / config overrides
+appsettings.Local.json
+appsettings.Development.json
+secrets.json
+
+# Data Protection keys (machine-specific, never commit)
+DataProtection-Keys/
+
+# SQLite database files (runtime artifacts)
+*.db
+*.db-shm
+*.db-wal
+
+# GitHub Actions local run cache (act)
+.act/
