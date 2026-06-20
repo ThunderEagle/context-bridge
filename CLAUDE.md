@@ -158,8 +158,8 @@ Write a memory (via `memory_write`) for:
 
 | Phase | Status |
 |---|---|
-| 0 — Project Foundation | In progress |
-| 1 — Windows Service Host + Configuration | Pending |
+| 0 — Project Foundation | Complete |
+| 1 — Windows Service Host + Configuration | Complete |
 | 2 — Embedding Pipeline | Pending |
 | 3 — Storage Layer | Pending |
 | 4 — MCP Tools | Pending |
