@@ -26,16 +26,37 @@ We will use the **INT8-quantized ONNX export of `all-MiniLM-L6-v2`** from the Hu
 - **Max sequence length:** 128 tokens (sentence-transformer default; sufficient for memory snippets)
 - **Pooling:** mean pooling over non-padding tokens, then L2 normalization
 
-The model files are committed to the repository under `models/all-MiniLM-L6-v2/`. This is intentional — it ensures reproducible builds and zero download dependency at install time. A `manifest.json` alongside the files records the source URL, SHA256, and metadata.
+The model binary is **not committed to the repository**. Instead, `models/all-MiniLM-L6-v2/manifest.json` is committed as the authoritative spec (source URL, SHA256, metadata). The binary is downloaded at install time via `context-bridge service install` or `context-bridge model download`.
+
+**Storage location at runtime:** `%PROGRAMDATA%\ContextBridge\models\all-MiniLM-L6-v2\`  
+This directory is stable across `dotnet tool update` cycles, unlike `AppContext.BaseDirectory` which points into the tool package directory and is wiped on update.
+
+**For local development:** place model files in `models/all-MiniLM-L6-v2/` alongside the manifest (gitignored). `dotnet test` and `dotnet run` will find them via directory walk-up and `%PROGRAMDATA%` fallback respectively.
+
+### Install-time download flow
+
+`context-bridge service install` checks for the model in `%PROGRAMDATA%` before registering the Windows Service:
+
+```
+  The ContextBridge embedding model is not yet installed.
+  This step will download ~22 MB (all-MiniLM-L6-v2) from huggingface.co
+  and store it in: C:\ProgramData\ContextBridge\models\all-MiniLM-L6-v2
+
+  Proceed with download? [Y/n]:
+```
+
+- **Y / Enter** — downloads, verifies SHA256, then installs the service
+- **N** — aborts cleanly; user can pre-stage with `context-bridge model download` and re-run
+- **`--yes` flag** — skips the prompt for scripted/unattended installs
 
 ### Model upgrade procedure
 
 1. Run `scripts/update-model.ps1` with the new source URL
 2. Update `models/all-MiniLM-L6-v2/manifest.json` with the new `sha256`
 3. Run `dotnet test` — the semantic similarity thresholds in the embedding tests serve as a regression gate
-4. Submit a PR with the binary diff; the manifest change makes the upgrade auditable in code review
+4. Submit a PR; the manifest diff is the auditable record of the upgrade
 
-**Model upgrades are breaking changes.** A new model produces a different embedding space — all vectors stored in SQLite from the previous model become incompatible. Any future model upgrade must be paired with a storage migration strategy (Phase 3+). Making it a PR enforces this discipline.
+**Model upgrades are breaking changes.** A new model produces a different embedding space — all vectors stored in SQLite from the previous model become incompatible. Any future model upgrade must be paired with a storage migration strategy (Phase 3+).
 
 ## Consequences
 
@@ -63,7 +84,9 @@ The model files are committed to the repository under `models/all-MiniLM-L6-v2/`
 | `model_qint8_arm64.onnx` | ARM64 only — primary target is Windows x64 |
 | `all-MiniLM-L12-v2` INT8 (~44 MB, 384-dim) | 2× larger, small quality improvement not worth the size trade-off for v1 |
 | `bge-small-en-v1.5` (384-dim, ~67 MB) | Higher quality ceiling but larger FP32 only; no Optimum INT8 export readily available |
-| Download model at first run | Violates zero-dependency install principle; adds failure mode (network, disk, path) at startup |
+| Commit binary to git | 22 MB permanent in git history; penalises every clone and fork; `dotnet tool update` still needs a solution since binary doesn't live in the install path |
+| Git LFS | Cleaner than raw git but LFS adds infrastructure dependency for contributors; overkill for a single file that's already available via HuggingFace |
+| Download at service runtime (first run) | Adds startup failure mode; unacceptable for a background service that must start reliably |
 | Ollama-hosted model | Requires Ollama running as a separate process — exactly the dependency this project avoids |
 
 ## References

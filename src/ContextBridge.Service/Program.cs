@@ -52,7 +52,8 @@ builder.Services.AddDataProtection()
 
 builder.Services.AddSingleton<TokenStore>();
 
-var modelDir = Path.Combine(AppContext.BaseDirectory, "models", "all-MiniLM-L6-v2");
+// Models are installed to ProgramData by 'service install'; fall back to BaseDirectory for dev
+var modelDir = ResolveModelDir(programDataPath);
 builder.Services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(
     new BundledOnnxEmbeddingGenerator(
         Path.Combine(modelDir, "model_quint8_avx2.onnx"),
@@ -64,3 +65,15 @@ builder.Services.AddWindowsService(options => options.ServiceName = "ContextBrid
 var host = builder.Build();
 await host.RunAsync();
 return 0;
+
+static string ResolveModelDir(string programDataPath)
+{
+    var programDataModel = Path.Combine(programDataPath, "models", "all-MiniLM-L6-v2");
+    if (Directory.Exists(programDataModel))
+    {
+        return programDataModel;
+    }
+
+    // Dev fallback: model files placed alongside the executable (content copy from build)
+    return Path.Combine(AppContext.BaseDirectory, "models", "all-MiniLM-L6-v2");
+}

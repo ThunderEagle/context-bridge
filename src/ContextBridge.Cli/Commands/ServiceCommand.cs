@@ -2,11 +2,19 @@ using System.ComponentModel;
 using System.CommandLine;
 using System.ServiceProcess;
 using ContextBridge.Cli.WindowsService;
+using ContextBridge.Infrastructure.Embedding;
 
 namespace ContextBridge.Cli.Commands;
 
 internal static class ServiceCommand
 {
+    private static readonly string ModelDataDir = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+        "ContextBridge", "models", "all-MiniLM-L6-v2");
+
+    private static readonly string ManifestSourceDir = Path.Combine(
+        AppContext.BaseDirectory, "models", "all-MiniLM-L6-v2");
+
     public static Command Build()
     {
         var cmd = new Command("service", "Manage the ContextBridge Windows Service");
@@ -20,10 +28,21 @@ internal static class ServiceCommand
 
     private static Command BuildInstall()
     {
+        var yes = new Option<bool>("--yes", "Skip confirmation prompts and accept all defaults");
         var cmd = new Command("install", "Register and start the ContextBridge Windows Service (requires admin)");
-        cmd.SetAction(_ =>
+        cmd.Add(yes);
+        cmd.SetAction(async (parseResult, cancellationToken) =>
         {
-            if (!CliHelpers.RequireAdmin()) { return; }
+            if (!CliHelpers.RequireAdmin())
+            {
+                return;
+            }
+
+            if (!await EnsureModelAsync(parseResult.GetValue(yes), cancellationToken))
+            {
+                return;
+            }
+
             try
             {
                 NativeServiceManager.Install();
@@ -145,6 +164,59 @@ internal static class ServiceCommand
         catch (InvalidOperationException)
         {
             // Not installed — nothing to stop
+        }
+    }
+
+    /// <summary>
+    /// Ensures the embedding model is present in the data directory.
+    /// Prompts the user before downloading unless <paramref name="skipPrompt"/> is true.
+    /// Returns false if the user declines or download fails.
+    /// </summary>
+    private static async Task<bool> EnsureModelAsync(bool skipPrompt, CancellationToken cancellationToken)
+    {
+        string modelPath = Path.Combine(ModelDataDir, "model_quint8_avx2.onnx");
+        if (File.Exists(modelPath))
+        {
+            return true;
+        }
+
+        Console.WriteLine();
+        Console.WriteLine("  The ContextBridge embedding model is not yet installed.");
+        Console.WriteLine("  This step will download ~22 MB (all-MiniLM-L6-v2) from huggingface.co");
+        Console.WriteLine($"  and store it in: {ModelDataDir}");
+        Console.WriteLine();
+
+        if (!skipPrompt)
+        {
+            Console.Write("  Proceed with download? [Y/n]: ");
+            string? answer = Console.ReadLine()?.Trim();
+            if (answer is not null && !answer.Equals("y", StringComparison.OrdinalIgnoreCase) && answer.Length > 0)
+            {
+                Console.WriteLine();
+                Console.WriteLine("  Download skipped. Service not installed.");
+                Console.WriteLine("  Run 'context-bridge service install' again when ready, or");
+                Console.WriteLine("  run 'context-bridge model download' to pre-stage the model.");
+                return false;
+            }
+        }
+
+        Console.WriteLine();
+        try
+        {
+            await ModelDownloader.DownloadAsync(
+                ManifestSourceDir,
+                ModelDataDir,
+                progress: msg => Console.WriteLine($"  {msg}"),
+                cancellationToken);
+            Console.WriteLine();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine();
+            Console.Error.WriteLine($"  Model download failed: {ex.Message}");
+            Console.Error.WriteLine("  Check your internet connection and try again.");
+            return false;
         }
     }
 }

@@ -36,10 +36,10 @@ coverage/
 # dotnet tool output
 publish/
 
-# Models — ONNX binary files are committed intentionally under models/
-# but exclude any accidental downloads elsewhere
-*.onnx
-!models/**/*.onnx
+# Models — binary files are downloaded at service install time, not committed
+# manifest.json is committed; the binaries are not
+models/**/*.onnx
+models/**/vocab.txt
 
 # Local dev secrets / config overrides
 appsettings.Local.json

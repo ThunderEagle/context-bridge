@@ -75,18 +75,28 @@ public sealed class BundledOnnxEmbeddingGeneratorTests : IDisposable
 
     private static string FindModelDir()
     {
-        // Start from the test assembly directory and walk up to find models/all-MiniLM-L6-v2/
+        // 1. ProgramData — set by 'service install' or 'model download'
+        var programData = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+            "ContextBridge", "models", "all-MiniLM-L6-v2");
+        if (File.Exists(Path.Combine(programData, "model_quint8_avx2.onnx")))
+        {
+            return programData;
+        }
+
+        // 2. Walk up from the test assembly to find models/ in the repo (gitignored local copy)
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null)
         {
             var candidate = Path.Combine(dir.FullName, "models", "all-MiniLM-L6-v2");
-            if (Directory.Exists(candidate))
+            if (File.Exists(Path.Combine(candidate, "model_quint8_avx2.onnx")))
             {
                 return candidate;
             }
             dir = dir.Parent;
         }
+
         throw new DirectoryNotFoundException(
-            "Could not locate models/all-MiniLM-L6-v2/ by walking up from the test assembly directory.");
+            "Embedding model not found. Run 'context-bridge model download' or 'context-bridge service install' first.");
     }
 }
