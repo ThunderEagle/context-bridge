@@ -14,5 +14,6 @@
   <ItemGroup>
     <ProjectReference Include="..\ContextBridge.Core\ContextBridge.Core.csproj" />
     <ProjectReference Include="..\ContextBridge.Infrastructure\ContextBridge.Infrastructure.csproj" />
+    <ProjectReference Include="..\ContextBridge.Cli\ContextBridge.Cli.csproj" />
   </ItemGroup>
 </Project>
