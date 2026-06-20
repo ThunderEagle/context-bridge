@@ -17,8 +17,8 @@ Code namespaces: `ContextBridge.*`
 src/
   ContextBridge.Core/           # Domain interfaces, models — no infrastructure deps
   ContextBridge.Infrastructure/ # SQLite, ONNX Runtime, MCP tool implementations
-  ContextBridge.Service/        # Worker Service host (Windows Service entry point)
-  ContextBridge.Cli/            # CLI commands: service, configure, extract, token
+  ContextBridge.Service/        # Single executable: Worker Service host + CLI entry point
+  ContextBridge.Cli/            # Class library: CLI command handler implementations
 tests/
   ContextBridge.Tests/          # xUnit integration tests
 docs/
@@ -27,7 +27,22 @@ docs/
 models/                         # Bundled ONNX model files (binary, committed intentionally)
 ```
 
-**Dependency direction:** Core ← Infrastructure ← Service/Cli. Core has no external package dependencies.
+**Single executable model:** `ContextBridge.Service` is the only executable. It bootstraps `System.CommandLine` at startup — if CLI args are present it routes to a command handler in `ContextBridge.Cli` and exits; otherwise it starts the Worker Service / Windows Service host. See ADR-002.
+
+**Dependency direction:**
+
+```
+ContextBridge.Service (exe)
+├── ContextBridge.Cli (lib)
+├── ContextBridge.Infrastructure (lib)
+└── ContextBridge.Core (lib)
+
+ContextBridge.Cli (lib)
+├── ContextBridge.Infrastructure (lib)
+└── ContextBridge.Core (lib)
+```
+
+Core has no external package dependencies.
 
 ---
 
@@ -88,16 +103,17 @@ File naming: `ADR-NNN-short-slug.md`. Commit with message prefix `docs(adr):`.
 
 Decisions already captured as ADRs:
 - ADR-001: .NET Worker Service as the host technology
-- ADR-002: DataProtection over raw DPAPI for secret storage
-- ADR-003: CLI-driven service registration (vs. MSI installer) for v1
-- ADR-004: all-MiniLM-L6-v2 INT8 quantized model
-- ADR-005: Tokenizer library choice
-- ADR-006: Dapper over EF Core for data access
-- ADR-007: Schema migration via `schema_version` table + startup DDL
-- ADR-008: Pure vector search over hybrid
-- ADR-009: Streamable HTTP over stdio MCP transport
-- ADR-010: Tag assignment as client responsibility
-- ADR-011: `extract` command calls Claude API directly
+- ADR-002: Single executable — CLI and Service in one binary
+- ADR-003: DataProtection over raw DPAPI for secret storage (Phase 1)
+- ADR-004: CLI-driven service registration (vs. MSI installer) for v1 (Phase 1)
+- ADR-005: all-MiniLM-L6-v2 INT8 quantized model (Phase 2)
+- ADR-006: Tokenizer library choice (Phase 2)
+- ADR-007: Dapper over EF Core for data access (Phase 3)
+- ADR-008: Schema migration via `schema_version` table + startup DDL (Phase 3)
+- ADR-009: Pure vector search over hybrid (Phase 3)
+- ADR-010: Streamable HTTP over stdio MCP transport (Phase 4)
+- ADR-011: Tag assignment as client responsibility (Phase 4)
+- ADR-012: `extract` command calls Claude API directly (Phase 5)
 
 ---
 
