@@ -50,7 +50,7 @@ Core has no external package dependencies.
 
 | Concern | Technology |
 |---|---|
-| Runtime | .NET 10 Worker Service |
+| Runtime | .NET 10 Web/Worker Service (`Microsoft.NET.Sdk.Web`) |
 | Windows Service | `Microsoft.Extensions.Hosting.WindowsServices` |
 | Embeddings | `Microsoft.ML.OnnxRuntime` + all-MiniLM-L6-v2 INT8 ONNX |
 | AI abstraction | `Microsoft.Extensions.AI` (`IEmbeddingGenerator<string, Embedding<float>>`) |
@@ -162,6 +162,6 @@ Write a memory (via `memory_write`) for:
 | 1 — Windows Service Host + Configuration | Complete |
 | 2 — Embedding Pipeline | Complete |
 | 3 — Storage Layer | Complete |
-| 4 — MCP Tools | Pending |
+| 4 — MCP Tools | Complete |
 | 5 — configure + extract Commands | Pending |
 | 6 — Distribution & Release | Pending |

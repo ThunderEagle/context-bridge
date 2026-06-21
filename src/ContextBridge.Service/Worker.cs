@@ -19,8 +19,5 @@ public class Worker(
         // Initialize / migrate the SQLite schema on every startup
         await schemaInitializer.InitializeAsync(stoppingToken);
         logger.LogInformation("Storage schema initialized");
-
-        // Placeholder: service loop will be replaced by Kestrel/MCP host in Phase 4
-        await Task.Delay(Timeout.Infinite, stoppingToken);
     }
 }
