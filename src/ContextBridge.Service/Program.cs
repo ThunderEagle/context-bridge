@@ -1,6 +1,8 @@
 using ContextBridge.Cli;
+using ContextBridge.Core.Repositories;
 using ContextBridge.Infrastructure.Embedding;
 using ContextBridge.Infrastructure.Security;
+using ContextBridge.Infrastructure.Storage;
 using ContextBridge.Service;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.AI;
@@ -58,6 +60,13 @@ builder.Services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(
     new BundledOnnxEmbeddingGenerator(
         Path.Combine(modelDir, "model_quint8_avx2.onnx"),
         Path.Combine(modelDir, "vocab.txt")));
+
+// Storage — SQLite + sqlite-vec
+var dbPath = Path.Combine(programDataPath, "memories.db");
+var vecExtensionPath = SqliteConnectionFactory.ResolveVecExtensionPath();
+builder.Services.AddSingleton(new SqliteConnectionFactory(dbPath, vecExtensionPath));
+builder.Services.AddSingleton<SchemaInitializer>();
+builder.Services.AddSingleton<IMemoryRepository, MemoryRepository>();
 
 builder.Services.AddHostedService<Worker>();
 builder.Services.AddWindowsService(options => options.ServiceName = "ContextBridge");

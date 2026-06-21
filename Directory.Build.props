@@ -10,6 +10,9 @@
 
     <!-- Shared metadata for all projects -->
     <Authors>Scott Williams</Authors>
+    <!-- Audit only direct dependencies. The transitive SQLitePCLRaw.lib.e_sqlite3 2.1.11
+         (GHSA-2m69-gcr7-jv3q) has no patched release available; revisit when 2.1.12 ships. -->
+    <NuGetAuditMode>direct</NuGetAuditMode>
     <Company>ThunderEagle</Company>
     <Copyright>Copyright © 2026 Scott Williams</Copyright>
     <RepositoryUrl>https://github.com/ThunderEagle/context-bridge</RepositoryUrl>

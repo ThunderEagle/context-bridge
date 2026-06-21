@@ -41,6 +41,12 @@ publish/
 models/**/*.onnx
 models/**/vocab.txt
 
+# Native extension binaries — downloaded at service install time, not committed
+# Place vec0.dll in native/win-x64/ for local dev; obtained from sqlite-vec GitHub releases
+native/**/*.dll
+native/**/*.dylib
+native/**/*.so
+
 # Local dev secrets / config overrides
 appsettings.Local.json
 appsettings.Development.json

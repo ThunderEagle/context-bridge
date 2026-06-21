@@ -1,10 +1,12 @@
+using ContextBridge.Infrastructure.Storage;
 using Microsoft.Extensions.AI;
 
 namespace ContextBridge.Service;
 
 public class Worker(
     ILogger<Worker> logger,
-    IEmbeddingGenerator<string, Embedding<float>> embeddingGenerator) : BackgroundService
+    IEmbeddingGenerator<string, Embedding<float>> embeddingGenerator,
+    SchemaInitializer schemaInitializer) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -13,6 +15,10 @@ public class Worker(
         logger.LogInformation(
             "Embedding model loaded (all-MiniLM-L6-v2, {Dims} dims)",
             probe[0].Vector.Length);
+
+        // Initialize / migrate the SQLite schema on every startup
+        await schemaInitializer.InitializeAsync(stoppingToken);
+        logger.LogInformation("Storage schema initialized");
 
         // Placeholder: service loop will be replaced by Kestrel/MCP host in Phase 4
         await Task.Delay(Timeout.Infinite, stoppingToken);
