@@ -1,3 +1,5 @@
+using System.Security.AccessControl;
+using System.Security.Principal;
 using ContextBridge.Infrastructure.Storage;
 using Microsoft.Extensions.AI;
 
@@ -19,5 +21,27 @@ public class Worker(
         // Initialize / migrate the SQLite schema on every startup
         await schemaInitializer.InitializeAsync(stoppingToken);
         logger.LogInformation("Storage schema initialized");
+
+        // The service runs as LocalSystem. Ensure the data directory grants the Users group
+        // Modify access so the stdio subprocess (running as the current user) can write memories.db.
+        EnsureDataDirPermissions(Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+            "ContextBridge"));
+    }
+
+    private static void EnsureDataDirPermissions(string dataDir)
+    {
+        Directory.CreateDirectory(dataDir);
+        var dirInfo = new DirectoryInfo(dataDir);
+        var security = dirInfo.GetAccessControl(AccessControlSections.Access);
+        var users = new SecurityIdentifier(WellKnownSidType.BuiltinUsersSid, null);
+        var rule = new FileSystemAccessRule(
+            users,
+            FileSystemRights.Modify | FileSystemRights.Synchronize,
+            InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
+            PropagationFlags.None,
+            AccessControlType.Allow);
+        security.AddAccessRule(rule);
+        dirInfo.SetAccessControl(security);
     }
 }

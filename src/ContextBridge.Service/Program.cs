@@ -40,6 +40,13 @@ const string mcpInstructions =
 if (args.Length > 0 && args[0].Equals("stdio", StringComparison.OrdinalIgnoreCase))
 {
     var stdioBuilder = Host.CreateApplicationBuilder(args);
+
+    // stdout is the MCP protocol channel — route all host logging to stderr so it
+    // doesn't corrupt the JSON-RPC framing that Claude Desktop reads from stdout.
+    stdioBuilder.Logging.ClearProviders();
+    stdioBuilder.Logging.AddConsole(options =>
+        options.LogToStandardErrorThreshold = LogLevel.Trace);
+    stdioBuilder.Logging.SetMinimumLevel(LogLevel.Warning);
     stdioBuilder.Configuration.AddJsonFile(
         Path.Combine(programDataPath, "appsettings.json"), optional: true);
 
