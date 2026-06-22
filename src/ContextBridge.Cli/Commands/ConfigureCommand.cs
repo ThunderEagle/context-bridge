@@ -18,6 +18,7 @@ internal static class ConfigureCommand
 
             if (ConfigureClaudeCode(port)) { configured++; }
             if (ConfigureClaudeDesktop()) { configured++; }
+            if (ConfigureCline(port)) { configured++; }
 
             Console.WriteLine(configured == 0
                 ? $"No supported MCP clients detected. Manually add context-bridge to your MCP client config."
@@ -56,6 +57,42 @@ internal static class ConfigureCommand
         catch (Exception ex)
         {
             Console.Error.WriteLine($"  Failed to configure Claude Desktop: {ex.Message}");
+            return false;
+        }
+    }
+
+    private static bool ConfigureCline(int port)
+    {
+        var settingsDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "Code", "User", "globalStorage", "saoudrizwan.claude-dev", "settings");
+
+        if (!Directory.Exists(settingsDir)) { return false; }
+
+        var configPath = Path.Combine(settingsDir, "cline_mcp_settings.json");
+
+        try
+        {
+            var json = File.Exists(configPath)
+                ? JsonNode.Parse(File.ReadAllText(configPath))?.AsObject() ?? new JsonObject()
+                : new JsonObject();
+            var mcpServers = json["mcpServers"]?.AsObject() ?? new JsonObject();
+
+            mcpServers["context-bridge"] = new JsonObject
+            {
+                ["url"] = $"http://127.0.0.1:{port}/mcp",
+                ["disabled"] = false,
+                ["autoApprove"] = new JsonArray()
+            };
+            json["mcpServers"] = mcpServers;
+
+            File.WriteAllText(configPath, json.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+            Console.WriteLine($"  Cline configured (HTTP transport, port {port}).");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"  Failed to configure Cline: {ex.Message}");
             return false;
         }
     }
