@@ -41,7 +41,7 @@ internal static class ConfigureCommand
         var settings = ReadJsonObject(settingsPath);
 
         // MCP server entry
-        var mcpServers = settings["mcpServers"]?.AsObject()?.DeepClone() as JsonObject ?? new JsonObject();
+        var mcpServers = settings["mcpServers"]?.AsObject().DeepClone() as JsonObject ?? new JsonObject();
         mcpServers["context-bridge"] = new JsonObject
         {
             ["type"] = "http",
@@ -50,42 +50,8 @@ internal static class ConfigureCommand
         };
         settings["mcpServers"] = mcpServers;
 
-        // Stop hook — idempotent: remove any existing context-bridge entry, then append fresh
-        var hooks = settings["hooks"]?.AsObject()?.DeepClone() as JsonObject ?? new JsonObject();
-        var existingStop = hooks["Stop"]?.AsArray();
-        var newStop = new JsonArray();
-
-        if (existingStop != null)
-        {
-            foreach (var item in existingStop)
-            {
-                if (item == null) { continue; }
-                var hooksArr = item["hooks"]?.AsArray();
-                var hasOurCommand = hooksArr?.Any(h =>
-                    h?["command"]?.GetValue<string>() == "context-bridge extract") ?? false;
-                if (!hasOurCommand)
-                {
-                    newStop.Add(item.DeepClone());
-                }
-            }
-        }
-
-        newStop.Add(new JsonObject
-        {
-            ["hooks"] = new JsonArray
-            {
-                new JsonObject
-                {
-                    ["type"] = "command",
-                    ["command"] = "context-bridge extract"
-                }
-            }
-        });
-
-        hooks["Stop"] = newStop;
-        settings["hooks"] = hooks;
-
         WriteJsonObject(settingsPath, settings);
+        InjectClaudeMd();
         Console.WriteLine($"  Claude Code configured ({settingsPath})");
         return true;
     }
@@ -103,7 +69,7 @@ internal static class ConfigureCommand
 
         var config = ReadJsonObject(configPath);
 
-        var mcpServers = config["mcpServers"]?.AsObject()?.DeepClone() as JsonObject ?? new JsonObject();
+        var mcpServers = config["mcpServers"]?.AsObject().DeepClone() as JsonObject ?? new JsonObject();
         mcpServers["context-bridge"] = new JsonObject
         {
             ["url"] = $"http://127.0.0.1:{port}/",
@@ -137,5 +103,31 @@ internal static class ConfigureCommand
     {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, obj.ToJsonString(WriteOptions));
+    }
+
+    private static void InjectClaudeMd()
+    {
+        var claudeMdPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".claude", "CLAUDE.md");
+
+        const string sectionMarker = "## Context Bridge Memory";
+        const string injection = """
+
+
+## Context Bridge Memory
+
+You have access to a persistent memory service via the context-bridge MCP server.
+
+- Call `memory_search` at the start of each session to surface relevant prior context for the current project.
+- Call `memory_write` immediately after significant decisions, preferences, or architectural choices — do not defer to session end.
+- For multiple related memories, use `memory_batch_write` instead of sequential calls.
+- Tag every write: `project:<repo-name>` for scope; `type:decision|preference|pattern|reference` for classification.
+""";
+
+        var existing = File.Exists(claudeMdPath) ? File.ReadAllText(claudeMdPath) : string.Empty;
+        if (existing.Contains(sectionMarker, StringComparison.Ordinal)) { return; }
+
+        File.AppendAllText(claudeMdPath, injection);
     }
 }

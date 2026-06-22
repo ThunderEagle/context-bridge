@@ -113,7 +113,7 @@ Decisions already captured as ADRs:
 - ADR-009: Pure vector search over hybrid (Phase 3)
 - ADR-010: Streamable HTTP over stdio MCP transport (Phase 4)
 - ADR-011: Tag assignment as client responsibility (Phase 4)
-- ADR-012: `extract` command calls Claude API directly (Phase 5)
+- ADR-012: Session extraction is instructions-first, not command-driven (Phase 5)
 
 ---
 
@@ -163,5 +163,5 @@ Write a memory (via `memory_write`) for:
 | 2 — Embedding Pipeline | Complete |
 | 3 — Storage Layer | Complete |
 | 4 — MCP Tools | Complete |
-| 5 — configure + extract Commands | Pending |
+| 5 — configure + CLAUDE.md injection (extract dropped; see ADR-012) | Complete |
 | 6 — Distribution & Release | Pending |
