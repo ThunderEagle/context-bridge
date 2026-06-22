@@ -8,18 +8,19 @@ namespace ContextBridge.Infrastructure.Embedding;
 public sealed class BundledOnnxEmbeddingGenerator : IEmbeddingGenerator<string, Embedding<float>>
 {
     private const int MaxSequenceLength = 128;
-    private const int Dimensions = 384;
 
     private readonly InferenceSession _session;
     private readonly BertTokenizer _tokenizer;
+    private int _dimensions;
 
-    public EmbeddingGeneratorMetadata Metadata { get; } =
-        new("BundledOnnx", providerUri: null, defaultModelId: "all-MiniLM-L6-v2", defaultModelDimensions: Dimensions);
+    public EmbeddingGeneratorMetadata Metadata { get; private set; }
 
     public BundledOnnxEmbeddingGenerator(string modelPath, string vocabPath)
     {
         _session = new InferenceSession(modelPath);
         _tokenizer = BertTokenizer.Create(vocabPath, new BertOptions { LowerCaseBeforeTokenization = true });
+        _dimensions = 0; // Will be set on first inference
+        Metadata = new("BundledOnnx", providerUri: null, defaultModelId: "all-MiniLM-L6-v2", defaultModelDimensions: 0);
     }
 
     public async Task<GeneratedEmbeddings<Embedding<float>>> GenerateAsync(
@@ -96,8 +97,14 @@ public sealed class BundledOnnxEmbeddingGenerator : IEmbeddingGenerator<string, 
 
         using var outputs = _session.Run(inputs);
 
-        // last_hidden_state: [batch, seq, 384]
         var hiddenState = outputs.First(o => o.Name == "last_hidden_state").AsTensor<float>();
+
+        // Derive dimensions from tensor shape on first inference
+        if (_dimensions == 0)
+        {
+            _dimensions = hiddenState.Dimensions[2];
+            Metadata = new("BundledOnnx", providerUri: null, defaultModelId: "all-MiniLM-L6-v2", defaultModelDimensions: _dimensions);
+        }
 
         var result = new float[batchSize][];
         for (int b = 0; b < batchSize; b++)
@@ -107,9 +114,9 @@ public sealed class BundledOnnxEmbeddingGenerator : IEmbeddingGenerator<string, 
         return result;
     }
 
-    private static float[] MeanPoolAndNormalize(Tensor<float> hiddenState, long[] attentionMaskData, int batch)
+    private float[] MeanPoolAndNormalize(Tensor<float> hiddenState, long[] attentionMaskData, int batch)
     {
-        var pooled = new float[Dimensions];
+        var pooled = new float[_dimensions];
         int maskSum = 0;
         int offset = batch * MaxSequenceLength;
 
@@ -120,7 +127,7 @@ public sealed class BundledOnnxEmbeddingGenerator : IEmbeddingGenerator<string, 
                 continue;
             }
             maskSum++;
-            for (int d = 0; d < Dimensions; d++)
+            for (int d = 0; d < _dimensions; d++)
             {
                 pooled[d] += hiddenState[batch, s, d];
             }
@@ -129,7 +136,7 @@ public sealed class BundledOnnxEmbeddingGenerator : IEmbeddingGenerator<string, 
         if (maskSum > 0)
         {
             float count = maskSum;
-            for (int d = 0; d < Dimensions; d++)
+            for (int d = 0; d < _dimensions; d++)
             {
                 pooled[d] /= count;
             }
@@ -137,7 +144,7 @@ public sealed class BundledOnnxEmbeddingGenerator : IEmbeddingGenerator<string, 
 
         // L2 normalize
         float normSq = 0f;
-        for (int d = 0; d < Dimensions; d++)
+        for (int d = 0; d < _dimensions; d++)
         {
             normSq += pooled[d] * pooled[d];
         }
@@ -145,7 +152,7 @@ public sealed class BundledOnnxEmbeddingGenerator : IEmbeddingGenerator<string, 
         float norm = MathF.Sqrt(normSq);
         if (norm > 0f)
         {
-            for (int d = 0; d < Dimensions; d++)
+            for (int d = 0; d < _dimensions; d++)
             {
                 pooled[d] /= norm;
             }

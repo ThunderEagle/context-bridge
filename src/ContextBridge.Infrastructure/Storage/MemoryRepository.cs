@@ -123,41 +123,58 @@ public sealed class MemoryRepository(SqliteConnectionFactory factory) : IMemoryR
 
         var tagList = tags?.Select(t => t.Trim()).Where(t => t.Length > 0).ToList();
         bool hasTagFilter = tagList is { Count: > 0 };
-
-        string tagJoin = hasTagFilter
-            ? "JOIN memory_tags mt ON mt.memory_id = m.id JOIN tags t ON t.id = mt.tag_id"
-            : string.Empty;
-        string tagWhere = hasTagFilter
-            ? "AND t.name IN @tagNames"
-            : string.Empty;
-        string distinctClause = hasTagFilter ? "DISTINCT" : string.Empty;
-
         int offset = (page - 1) * pageSize;
 
-        var countSql = $"""
-            SELECT COUNT({distinctClause} m.id)
-            FROM memories m
-            {tagJoin}
-            WHERE m.is_deleted = 0
-            {tagWhere}
-            """;
+        // Build query conditionally to avoid string interpolation fragility
+        string countSql;
+        string querySql;
+        object countParam;
+        object param;
 
-        var querySql = $"""
-            SELECT {distinctClause} m.id AS Id, m.content AS Content, m.created_at AS CreatedAt, m.updated_at AS UpdatedAt
-            FROM memories m
-            {tagJoin}
-            WHERE m.is_deleted = 0
-            {tagWhere}
-            ORDER BY m.created_at DESC
-            LIMIT @pageSize OFFSET @offset
-            """;
+        if (hasTagFilter)
+        {
+            countSql = """
+                SELECT COUNT(DISTINCT m.id)
+                FROM memories m
+                JOIN memory_tags mt ON mt.memory_id = m.id
+                JOIN tags t ON t.id = mt.tag_id
+                WHERE m.is_deleted = 0
+                AND t.name IN @tagNames
+                """;
 
-        object param = hasTagFilter
-            ? new { tagNames = tagList, pageSize, offset }
-            : (object)new { pageSize, offset };
-        object countParam = hasTagFilter
-            ? (object)new { tagNames = tagList }
-            : new { };
+            querySql = """
+                SELECT DISTINCT m.id AS Id, m.content AS Content, m.created_at AS CreatedAt, m.updated_at AS UpdatedAt
+                FROM memories m
+                JOIN memory_tags mt ON mt.memory_id = m.id
+                JOIN tags t ON t.id = mt.tag_id
+                WHERE m.is_deleted = 0
+                AND t.name IN @tagNames
+                ORDER BY m.created_at DESC
+                LIMIT @pageSize OFFSET @offset
+                """;
+
+            countParam = new { tagNames = tagList };
+            param = new { tagNames = tagList, pageSize, offset };
+        }
+        else
+        {
+            countSql = """
+                SELECT COUNT(m.id)
+                FROM memories m
+                WHERE m.is_deleted = 0
+                """;
+
+            querySql = """
+                SELECT m.id AS Id, m.content AS Content, m.created_at AS CreatedAt, m.updated_at AS UpdatedAt
+                FROM memories m
+                WHERE m.is_deleted = 0
+                ORDER BY m.created_at DESC
+                LIMIT @pageSize OFFSET @offset
+                """;
+
+            countParam = new { };
+            param = new { pageSize, offset };
+        }
 
         int totalCount = await connection.ExecuteScalarAsync<int>(
             new CommandDefinition(countSql, countParam, cancellationToken: ct));

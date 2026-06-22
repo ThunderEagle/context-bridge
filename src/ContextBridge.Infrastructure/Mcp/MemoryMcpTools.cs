@@ -32,12 +32,12 @@ public sealed class MemoryMcpTools(
         [Description("The memories to store.")] MemoryBatchEntry[] memories,
         CancellationToken cancellationToken = default)
     {
-        var entries = new List<NewMemory>(memories.Length);
-        foreach (var m in memories)
-        {
-            var embedding = await EmbedAsync(m.Content, cancellationToken);
-            entries.Add(new NewMemory(m.Content, embedding, m.Tags));
-        }
+        var contents = memories.Select(m => m.Content).ToList();
+        var embeddings = await embedder.GenerateAsync(contents, cancellationToken: cancellationToken);
+
+        var entries = memories.Zip(embeddings)
+            .Select(pair => new NewMemory(pair.First.Content, pair.Second.Vector.ToArray(), pair.First.Tags))
+            .ToList();
 
         var ids = await repository.BatchWriteAsync(entries, cancellationToken);
         return JsonSerializer.Serialize(new { ids }, JsonOptions);
