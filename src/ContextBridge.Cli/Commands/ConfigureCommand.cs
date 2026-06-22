@@ -1,5 +1,6 @@
 using System.CommandLine;
 using System.Diagnostics;
+using System.Text.Json.Nodes;
 using Microsoft.Extensions.Configuration;
 
 namespace ContextBridge.Cli.Commands;
@@ -16,16 +17,47 @@ internal static class ConfigureCommand
             var configured = 0;
 
             if (ConfigureClaudeCode(port)) { configured++; }
-            // Claude Desktop only supports stdio MCP servers; HTTP/SSE entries in
-            // claude_desktop_config.json are rejected at startup.
+            if (ConfigureClaudeDesktop()) { configured++; }
 
             Console.WriteLine(configured == 0
-                ? "No supported MCP clients detected. Run 'claude mcp add --transport http context-bridge http://127.0.0.1:{port}/mcp --scope user' manually."
+                ? $"No supported MCP clients detected. Manually add context-bridge to your MCP client config."
                 : $"\nConfigured {configured} client(s). Restart them to pick up the changes.");
 
             return Task.FromResult(0);
         });
         return cmd;
+    }
+
+    private static bool ConfigureClaudeDesktop()
+    {
+        var configPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "Claude", "claude_desktop_config.json");
+
+        if (!File.Exists(configPath)) { return false; }
+
+        try
+        {
+            var json = JsonNode.Parse(File.ReadAllText(configPath))?.AsObject() ?? new JsonObject();
+            var mcpServers = json["mcpServers"]?.AsObject() ?? new JsonObject();
+
+            var exePath = Environment.ProcessPath ?? "context-bridge";
+            mcpServers["context-bridge"] = new JsonObject
+            {
+                ["command"] = exePath,
+                ["args"] = new JsonArray("stdio")
+            };
+            json["mcpServers"] = mcpServers;
+
+            File.WriteAllText(configPath, json.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+            Console.WriteLine("  Claude Desktop configured (stdio transport).");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"  Failed to configure Claude Desktop: {ex.Message}");
+            return false;
+        }
     }
 
     private static bool ConfigureClaudeCode(int port)

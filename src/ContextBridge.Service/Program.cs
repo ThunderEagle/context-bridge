@@ -13,6 +13,64 @@ var programDataPath = Path.Combine(
     Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
     "ContextBridge");
 
+// Shared MCP server instructions for both HTTP (service) and stdio (Claude Desktop) modes.
+const string mcpInstructions =
+    """
+    You have access to a persistent memory service (context-bridge). Use it to preserve and retrieve context across sessions.
+
+    memory_write — store a single memory immediately after a significant decision, architectural choice, or preference.
+    memory_batch_write — store multiple related memories atomically; prefer this over sequential writes.
+    memory_search — semantic search with natural language; call at session start to surface relevant prior context.
+    memory_list — paginated list of all memories; useful for browsing or auditing.
+    memory_update — update an existing memory when its content changes.
+    memory_delete — remove a memory that is no longer accurate or relevant.
+    memory_status — service health and record counts.
+
+    Tag conventions (apply on every write):
+    - project:<repo-name> — scope the memory to the current repository
+    - type:decision — architectural or technology choice
+    - type:preference — coding style, tooling, or workflow preference
+    - type:pattern — recurring pattern or convention established in this codebase
+    - type:reference — pointer to external resources, docs, or issue trackers
+
+    Write memories incrementally during the session. Do not batch everything for session end.
+    """;
+
+// stdio mode — spawned by Claude Desktop; minimal host, no HTTP stack.
+if (args.Length > 0 && args[0].Equals("stdio", StringComparison.OrdinalIgnoreCase))
+{
+    var stdioBuilder = Host.CreateApplicationBuilder(args);
+    stdioBuilder.Configuration.AddJsonFile(
+        Path.Combine(programDataPath, "appsettings.json"), optional: true);
+
+    var stdioModelDir = ResolveModelDir(programDataPath);
+    stdioBuilder.Services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(
+        _ => new BundledOnnxEmbeddingGenerator(
+            Path.Combine(stdioModelDir, "model_quint8_avx2.onnx"),
+            Path.Combine(stdioModelDir, "vocab.txt")));
+
+    var stdioVecPath = SqliteConnectionFactory.ResolveVecExtensionPath();
+    stdioBuilder.Services.AddSingleton(
+        new SqliteConnectionFactory(Path.Combine(programDataPath, "memories.db"), stdioVecPath));
+    stdioBuilder.Services.AddSingleton<SchemaInitializer>();
+    stdioBuilder.Services.AddSingleton<IMemoryRepository, MemoryRepository>();
+
+    stdioBuilder.Services
+        .AddMcpServer(options =>
+        {
+            options.ServerInfo = new Implementation { Name = "context-bridge", Version = "1.0.0" };
+            options.ServerInstructions = mcpInstructions;
+        })
+        .WithStdioServerTransport()
+        .WithTools<MemoryMcpTools>();
+
+    var stdioHost = stdioBuilder.Build();
+    await stdioHost.Services.GetRequiredService<SchemaInitializer>()
+        .InitializeAsync(CancellationToken.None);
+    await stdioHost.RunAsync();
+    return 0;
+}
+
 if (args.Length > 0)
 {
     // CLI mode — minimal container
@@ -56,28 +114,6 @@ builder.Services.AddHostedService<Worker>();
 builder.Services.AddWindowsService(options => options.ServiceName = "ContextBridge");
 
 // MCP server with Streamable HTTP transport
-const string mcpInstructions =
-    """
-    You have access to a persistent memory service (context-bridge). Use it to preserve and retrieve context across sessions.
-
-    memory_write — store a single memory immediately after a significant decision, architectural choice, or preference.
-    memory_batch_write — store multiple related memories atomically; prefer this over sequential writes.
-    memory_search — semantic search with natural language; call at session start to surface relevant prior context.
-    memory_list — paginated list of all memories; useful for browsing or auditing.
-    memory_update — update an existing memory when its content changes.
-    memory_delete — remove a memory that is no longer accurate or relevant.
-    memory_status — service health and record counts.
-
-    Tag conventions (apply on every write):
-    - project:<repo-name> — scope the memory to the current repository
-    - type:decision — architectural or technology choice
-    - type:preference — coding style, tooling, or workflow preference
-    - type:pattern — recurring pattern or convention established in this codebase
-    - type:reference — pointer to external resources, docs, or issue trackers
-
-    Write memories incrementally during the session. Do not batch everything for session end.
-    """;
-
 builder.Services
     .AddMcpServer(options =>
     {
