@@ -1,8 +1,14 @@
 # ADR-013: Read-Only Web Dashboard — Auth Exemption and Implementation Approach
 
 **Date:** 2026-06-22  
-**Status:** Accepted  
+**Status:** Accepted (partially superseded — see note)  
 **Deciders:** Scott Williams
+
+---
+
+## Status Note
+
+The auth discussion below (bearer token exemptions, `BearerTokenMiddleware`) is obsolete. Bearer auth was dropped entirely on 2026-06-22 — there is no middleware to exempt from. The dashboard is unauthenticated by the same rationale: the 127.0.0.1 bind address is the security perimeter. The implementation decision (self-contained inline HTML) remains current.
 
 ---
 

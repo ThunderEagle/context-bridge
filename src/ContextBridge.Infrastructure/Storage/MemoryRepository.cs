@@ -235,8 +235,8 @@ public sealed class MemoryRepository(SqliteConnectionFactory factory) : IMemoryR
                 """
                 SELECT
                     COUNT(*) AS TotalCount,
-                    SUM(CASE WHEN is_deleted = 0 THEN 1 ELSE 0 END) AS ActiveCount,
-                    SUM(CASE WHEN is_deleted = 1 THEN 1 ELSE 0 END) AS DeletedCount
+                    COUNT(CASE WHEN is_deleted = 0 THEN 1 END) AS ActiveCount,
+                    COUNT(CASE WHEN is_deleted = 1 THEN 1 END) AS DeletedCount
                 FROM memories
                 """,
                 cancellationToken: ct));

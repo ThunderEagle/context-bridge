@@ -72,10 +72,10 @@ Invoke-RestMethod http://127.0.0.1:5290/health     # must return ok
 ```
 
 **Checks:**
-- [ ] Health endpoint responds after service start
-- [ ] `/mcp` returns 401 without an Authorization header
-- [ ] Service recovers cleanly after stop/start
-- [ ] Windows Event Log shows no errors: `Get-EventLog -LogName Application -Source ContextBridge -Newest 10`
+- [x] Health endpoint responds after service start
+- [x] `/mcp` returns 401 without an Authorization header
+- [x] Service recovers cleanly after stop/start
+- [x] Windows Event Log shows no errors: `Get-EventLog -LogName Application -Source ContextBridge -Newest 10`
 
 ---
 

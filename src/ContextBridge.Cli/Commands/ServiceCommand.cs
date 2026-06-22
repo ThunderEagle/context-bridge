@@ -1,8 +1,11 @@
 using System.ComponentModel;
 using System.CommandLine;
 using System.ServiceProcess;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using ContextBridge.Cli.WindowsService;
 using ContextBridge.Infrastructure.Embedding;
+using ContextBridge.Infrastructure.Security;
 
 namespace ContextBridge.Cli.Commands;
 
@@ -14,6 +17,12 @@ internal static class ServiceCommand
 
     private static readonly string ManifestSourceDir = Path.Combine(
         AppContext.BaseDirectory, "models", "all-MiniLM-L6-v2");
+
+    private static readonly string OverrideConfigPath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+        "ContextBridge", "appsettings.json");
+
+    private static readonly JsonSerializerOptions WriteOptions = new() { WriteIndented = true };
 
     public static Command Build()
     {
@@ -42,6 +51,8 @@ internal static class ServiceCommand
             {
                 return;
             }
+
+            EnsureCertificate();
 
             try
             {
@@ -97,9 +108,16 @@ internal static class ServiceCommand
             if (!CliHelpers.RequireAdmin()) { return; }
             try
             {
+                var thumbprint = ReadThumbprintFromConfig();
                 StopServiceIfRunning();
                 NativeServiceManager.Uninstall();
                 Console.WriteLine($"Service '{NativeServiceManager.ServiceName}' uninstalled.");
+
+                if (!string.IsNullOrWhiteSpace(thumbprint))
+                {
+                    CertificateManager.RemoveByThumbprint(thumbprint);
+                    Console.WriteLine("HTTPS certificate removed from LocalMachine stores.");
+                }
             }
             catch (Win32Exception ex)
             {
@@ -126,6 +144,53 @@ internal static class ServiceCommand
             }
         });
         return cmd;
+    }
+
+    private static void EnsureCertificate()
+    {
+        var thumbprint = ReadThumbprintFromConfig();
+        if (CertificateManager.IsValid(thumbprint))
+        {
+            Console.WriteLine("HTTPS certificate is valid, skipping generation.");
+            return;
+        }
+
+        Console.WriteLine("Generating HTTPS certificate for localhost...");
+        var cert = CertificateManager.GenerateAndInstall();
+        WriteThumbprintToConfig(cert.Thumbprint);
+        Console.WriteLine($"Certificate installed (thumbprint: {cert.Thumbprint[..8]}...).");
+        Console.WriteLine("Trusted in LocalMachine\\Root — valid for localhost connections only.");
+    }
+
+    private static string? ReadThumbprintFromConfig()
+    {
+        if (!File.Exists(OverrideConfigPath)) { return null; }
+        try
+        {
+            var obj = JsonNode.Parse(File.ReadAllText(OverrideConfigPath))?.AsObject();
+            return obj?["ServiceConfig"]?["CertificateThumbprint"]?.GetValue<string>();
+        }
+        catch (JsonException) { return null; }
+    }
+
+    private static void WriteThumbprintToConfig(string thumbprint)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(OverrideConfigPath)!);
+
+        JsonObject existing = new();
+        if (File.Exists(OverrideConfigPath))
+        {
+            try
+            {
+                existing = JsonNode.Parse(File.ReadAllText(OverrideConfigPath))?.AsObject() ?? new JsonObject();
+            }
+            catch (JsonException) { }
+        }
+
+        var serviceConfig = existing["ServiceConfig"]?.AsObject().DeepClone() as JsonObject ?? new JsonObject();
+        serviceConfig["CertificateThumbprint"] = thumbprint;
+        existing["ServiceConfig"] = serviceConfig;
+        File.WriteAllText(OverrideConfigPath, existing.ToJsonString(WriteOptions));
     }
 
     private static void StartServiceCore()

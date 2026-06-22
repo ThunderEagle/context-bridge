@@ -1,3 +1,4 @@
+using System.Net;
 using ContextBridge.Cli;
 using ContextBridge.Core.Repositories;
 using ContextBridge.Infrastructure.Embedding;
@@ -6,8 +7,6 @@ using ContextBridge.Infrastructure.Security;
 using ContextBridge.Infrastructure.Storage;
 using ContextBridge.Service;
 using ContextBridge.Service.Dashboard;
-using ContextBridge.Service.Http;
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.AI;
 using ModelContextProtocol.Protocol;
 
@@ -15,31 +14,16 @@ var programDataPath = Path.Combine(
     Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
     "ContextBridge");
 
-var keysDir = new DirectoryInfo(Path.Combine(programDataPath, "keys"));
-
 if (args.Length > 0)
 {
-    // CLI mode — minimal container with only DataProtection + TokenStore
+    // CLI mode — minimal container
     var configuration = new ConfigurationBuilder()
         .SetBasePath(AppContext.BaseDirectory)
         .AddJsonFile("appsettings.json", optional: true)
         .AddJsonFile(Path.Combine(programDataPath, "appsettings.json"), optional: true)
         .Build();
 
-    var services = new ServiceCollection();
-    services.AddDataProtection()
-        .PersistKeysToFileSystem(keysDir)
-        .ProtectKeysWithDpapi(protectToLocalMachine: true)
-        .SetApplicationName("ContextBridge");
-    services.AddSingleton<TokenStore>();
-
-    // Intentional: CLI mode builds a separate minimal container — not the web host container.
-#pragma warning disable ASP0000
-    await using var sp = services.BuildServiceProvider();
-#pragma warning restore ASP0000
-    var tokenStore = sp.GetRequiredService<TokenStore>();
-
-    return await CliCommandBuilder.Build(tokenStore, configuration)
+    return await CliCommandBuilder.Build(configuration)
         .Parse(args)
         .InvokeAsync();
 }
@@ -51,13 +35,6 @@ builder.Configuration.AddJsonFile(
     Path.Combine(programDataPath, "appsettings.json"),
     optional: true,
     reloadOnChange: true);
-
-builder.Services.AddDataProtection()
-    .PersistKeysToFileSystem(keysDir)
-    .ProtectKeysWithDpapi(protectToLocalMachine: true)
-    .SetApplicationName("ContextBridge");
-
-builder.Services.AddSingleton<TokenStore>();
 
 // Models are installed to ProgramData by 'service install'; fall back to BaseDirectory for dev.
 // Factory registration (not eager instance) so ONNX session creation happens after SERVICE_RUNNING
@@ -111,14 +88,27 @@ builder.Services
     .WithHttpTransport()
     .WithTools<MemoryMcpTools>();
 
-// Kestrel — localhost only, never 0.0.0.0
 var port = builder.Configuration.GetValue("ServiceConfig:Port", 5290);
-builder.WebHost.UseUrls($"http://127.0.0.1:{port}");
+var thumbprint = builder.Configuration.GetValue<string>("ServiceConfig:CertificateThumbprint");
+
+// Kestrel — localhost only, never 0.0.0.0.
+// HTTPS when a cert thumbprint is configured (installed via 'service install').
+// Falls back to HTTP for local dev runs without a certificate.
+builder.WebHost.ConfigureKestrel(kestrel =>
+{
+    kestrel.Listen(IPAddress.Loopback, port, listenOptions =>
+    {
+        if (!string.IsNullOrWhiteSpace(thumbprint))
+        {
+            listenOptions.UseHttps(https =>
+            {
+                https.ServerCertificateSelector = (_, _) => CertificateManager.FindByThumbprint(thumbprint);
+            });
+        }
+    });
+});
 
 var app = builder.Build();
-
-// Bearer token auth on all routes except /health
-app.UseMiddleware<BearerTokenMiddleware>();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 app.MapDashboard();

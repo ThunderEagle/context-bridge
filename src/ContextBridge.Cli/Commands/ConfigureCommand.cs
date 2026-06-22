@@ -1,108 +1,97 @@
 using System.CommandLine;
-using System.Text.Json;
-using System.Text.Json.Nodes;
-using ContextBridge.Infrastructure.Security;
+using System.Diagnostics;
+using Microsoft.Extensions.Configuration;
 
 namespace ContextBridge.Cli.Commands;
 
 internal static class ConfigureCommand
 {
-    private static readonly JsonSerializerOptions WriteOptions = new() { WriteIndented = true };
-
-    public static Command Build(TokenStore tokenStore, int port)
+    public static Command Build(IConfiguration configuration)
     {
+        var port = configuration.GetValue<int>("ServiceConfig:Port", 5290);
+
         var cmd = new Command("configure", "Configure MCP clients to connect to ContextBridge");
-        cmd.SetAction(async (_, ct) =>
+        cmd.SetAction((_, _) =>
         {
-            var token = await tokenStore.GetOrCreateTokenAsync(ct);
             var configured = 0;
 
-            if (ConfigureClaudeCode(token, port)) { configured++; }
-            if (ConfigureClaudeDesktop(token, port)) { configured++; }
+            if (ConfigureClaudeCode(port)) { configured++; }
+            // Claude Desktop only supports stdio MCP servers; HTTP/SSE entries in
+            // claude_desktop_config.json are rejected at startup.
 
             Console.WriteLine(configured == 0
-                ? "No supported MCP clients detected. Run 'context-bridge token' for manual configuration."
+                ? "No supported MCP clients detected. Run 'claude mcp add --transport http context-bridge http://127.0.0.1:{port}/mcp --scope user' manually."
                 : $"\nConfigured {configured} client(s). Restart them to pick up the changes.");
+
+            return Task.FromResult(0);
         });
         return cmd;
     }
 
-    private static bool ConfigureClaudeCode(string token, int port)
+    private static bool ConfigureClaudeCode(int port)
     {
-        var settingsPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".claude", "settings.json");
-
-        if (!Directory.Exists(Path.GetDirectoryName(settingsPath)))
-        {
-            return false;
-        }
-
-        var settings = ReadJsonObject(settingsPath);
-
-        // MCP server entry
-        var mcpServers = settings["mcpServers"]?.AsObject().DeepClone() as JsonObject ?? new JsonObject();
-        mcpServers["context-bridge"] = new JsonObject
-        {
-            ["type"] = "http",
-            ["url"] = $"http://127.0.0.1:{port}/",
-            ["headers"] = new JsonObject { ["Authorization"] = $"Bearer {token}" }
-        };
-        settings["mcpServers"] = mcpServers;
-
-        WriteJsonObject(settingsPath, settings);
-        InjectClaudeMd();
-        Console.WriteLine($"  Claude Code configured ({settingsPath})");
-        return true;
-    }
-
-    private static bool ConfigureClaudeDesktop(string token, int port)
-    {
-        var configPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "Claude", "claude_desktop_config.json");
-
-        if (!Directory.Exists(Path.GetDirectoryName(configPath)))
-        {
-            return false;
-        }
-
-        var config = ReadJsonObject(configPath);
-
-        var mcpServers = config["mcpServers"]?.AsObject().DeepClone() as JsonObject ?? new JsonObject();
-        mcpServers["context-bridge"] = new JsonObject
-        {
-            ["url"] = $"http://127.0.0.1:{port}/",
-            ["headers"] = new JsonObject { ["Authorization"] = $"Bearer {token}" }
-        };
-        config["mcpServers"] = mcpServers;
-
-        WriteJsonObject(configPath, config);
-        Console.WriteLine($"  Claude Desktop configured ({configPath})");
-        return true;
-    }
-
-    private static JsonObject ReadJsonObject(string path)
-    {
-        if (!File.Exists(path)) { return new JsonObject(); }
-
-        var text = File.ReadAllText(path);
-        if (string.IsNullOrWhiteSpace(text)) { return new JsonObject(); }
+        // Claude Code reads MCP servers from ~/.claude.json, not settings.json.
+        // The supported path is 'claude mcp add', which writes the correct format.
+        var claudeBinary = FindClaudeBinary();
+        if (claudeBinary is null) { return false; }
 
         try
         {
-            return JsonNode.Parse(text)?.AsObject() ?? new JsonObject();
+            var result = Process.Start(new ProcessStartInfo
+            {
+                FileName = claudeBinary,
+                Arguments = $"mcp add --transport http context-bridge http://127.0.0.1:{port}/mcp --scope user",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false
+            });
+
+            result!.WaitForExit(10_000);
+            var output = result.StandardOutput.ReadToEnd().Trim();
+            var error = result.StandardError.ReadToEnd().Trim();
+
+            if (result.ExitCode != 0)
+            {
+                Console.Error.WriteLine($"  claude mcp add failed: {error}");
+                return false;
+            }
+
+            Console.WriteLine($"  Claude Code configured ({output})");
+            InjectClaudeMd();
+            return true;
         }
-        catch (JsonException)
+        catch (Exception ex)
         {
-            return new JsonObject();
+            Console.Error.WriteLine($"  Failed to run claude mcp add: {ex.Message}");
+            return false;
         }
     }
 
-    private static void WriteJsonObject(string path, JsonObject obj)
+    private static string? FindClaudeBinary()
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, obj.ToJsonString(WriteOptions));
+        // Check PATH first
+        var pathDirs = Environment.GetEnvironmentVariable("PATH")?.Split(Path.PathSeparator) ?? [];
+        foreach (var dir in pathDirs)
+        {
+            var candidate = Path.Combine(dir, "claude.exe");
+            if (File.Exists(candidate)) { return candidate; }
+        }
+
+        // Fall back to known VSCode extension install locations
+        var extensionsDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".vscode", "extensions");
+
+        if (!Directory.Exists(extensionsDir)) { return null; }
+
+        var extension = Directory.GetDirectories(extensionsDir, "anthropic.claude-code-*")
+            .OrderByDescending(d => d)
+            .FirstOrDefault();
+
+        if (extension is null) { return null; }
+
+        var binary = Path.Combine(extension, "resources", "native-binary", "claude.exe");
+        return File.Exists(binary) ? binary : null;
     }
 
     private static void InjectClaudeMd()
