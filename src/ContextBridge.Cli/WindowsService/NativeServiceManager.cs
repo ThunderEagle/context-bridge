@@ -13,11 +13,15 @@ internal static class NativeServiceManager
     private const uint ServiceWin32OwnProcess = 0x00000010;
     private const uint ServiceAutoStart = 0x00000002;
     private const uint ServiceErrorNormal = 0x00000001;
+    private const int ErrorServiceMarkedForDelete = 1072;
+    private const int ErrorServiceExists = 1073;
 
     public static void Install()
     {
-        var binaryPath = Environment.ProcessPath
+        var rawPath = Environment.ProcessPath
             ?? throw new InvalidOperationException("Cannot determine the executable path.");
+        // SCM splits unquoted paths on spaces; always quote.
+        var binaryPath = $"\"{rawPath}\"";
 
         var scHandle = OpenSCManager(null, null, ScManagerAllAccess);
         if (scHandle == IntPtr.Zero)
@@ -40,7 +44,17 @@ internal static class NativeServiceManager
 
             if (svcHandle == IntPtr.Zero)
             {
-                throw new Win32Exception(Marshal.GetLastWin32Error(), "Failed to create Windows Service.");
+                var err = Marshal.GetLastWin32Error();
+                var reason = new Win32Exception(err).Message;
+                if (err == ErrorServiceExists)
+                {
+                    throw new InvalidOperationException($"Service '{ServiceName}' is already registered. Run 'service uninstall' first.");
+                }
+                if (err == ErrorServiceMarkedForDelete)
+                {
+                    throw new InvalidOperationException($"Service '{ServiceName}' is pending deletion — a reboot is required before it can be re-created.");
+                }
+                throw new InvalidOperationException($"Failed to create Windows Service. Win32 error {err}: {reason}");
             }
 
             CloseServiceHandle(svcHandle);

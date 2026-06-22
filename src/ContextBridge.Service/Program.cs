@@ -10,7 +10,6 @@ using ContextBridge.Service.Http;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.AI;
 using ModelContextProtocol.Protocol;
-using ModelContextProtocol.Server;
 
 var programDataPath = Path.Combine(
     Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
@@ -60,12 +59,14 @@ builder.Services.AddDataProtection()
 
 builder.Services.AddSingleton<TokenStore>();
 
-// Models are installed to ProgramData by 'service install'; fall back to BaseDirectory for dev
+// Models are installed to ProgramData by 'service install'; fall back to BaseDirectory for dev.
+// Factory registration (not eager instance) so ONNX session creation happens after SERVICE_RUNNING
+// is signaled to SCM — avoids the 30-second Windows Service startup timeout on cold JIT.
 var modelDir = ResolveModelDir(programDataPath);
+var modelPath = Path.Combine(modelDir, "model_quint8_avx2.onnx");
+var vocabPath = Path.Combine(modelDir, "vocab.txt");
 builder.Services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(
-    new BundledOnnxEmbeddingGenerator(
-        Path.Combine(modelDir, "model_quint8_avx2.onnx"),
-        Path.Combine(modelDir, "vocab.txt")));
+    _ => new BundledOnnxEmbeddingGenerator(modelPath, vocabPath));
 
 // Storage — SQLite + sqlite-vec
 var dbPath = Path.Combine(programDataPath, "memories.db");
@@ -79,7 +80,7 @@ builder.Services.AddHostedService<Worker>();
 builder.Services.AddWindowsService(options => options.ServiceName = "ContextBridge");
 
 // MCP server with Streamable HTTP transport
-const string McpInstructions =
+const string mcpInstructions =
     """
     You have access to a persistent memory service (context-bridge). Use it to preserve and retrieve context across sessions.
 
@@ -105,12 +106,13 @@ builder.Services
     .AddMcpServer(options =>
     {
         options.ServerInfo = new Implementation { Name = "context-bridge", Version = "1.0.0" };
-        options.ServerInstructions = McpInstructions;
+        options.ServerInstructions = mcpInstructions;
     })
+    .WithHttpTransport()
     .WithTools<MemoryMcpTools>();
 
 // Kestrel — localhost only, never 0.0.0.0
-var port = builder.Configuration.GetValue<int>("ServiceConfig:Port", 5290);
+var port = builder.Configuration.GetValue("ServiceConfig:Port", 5290);
 builder.WebHost.UseUrls($"http://127.0.0.1:{port}");
 
 var app = builder.Build();

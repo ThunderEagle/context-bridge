@@ -21,7 +21,7 @@ internal static class ModelCommand
 
     private static Command BuildDownload()
     {
-        var yes = new Option<bool>("--yes", "Skip confirmation prompt");
+        var yes = new Option<bool>("--yes") { Description = "Skip confirmation prompt" };
         var cmd = new Command("download", "Download the embedding model to the data directory");
         cmd.Add(yes);
         cmd.SetAction(async (parseResult, cancellationToken) =>

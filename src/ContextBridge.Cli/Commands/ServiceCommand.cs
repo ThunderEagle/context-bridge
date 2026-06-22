@@ -28,7 +28,7 @@ internal static class ServiceCommand
 
     private static Command BuildInstall()
     {
-        var yes = new Option<bool>("--yes", "Skip confirmation prompts and accept all defaults");
+        var yes = new Option<bool>("--yes") { Description = "Skip confirmation prompts and accept all defaults" };
         var cmd = new Command("install", "Register and start the ContextBridge Windows Service (requires admin)");
         cmd.Add(yes);
         cmd.SetAction(async (parseResult, cancellationToken) =>
@@ -49,7 +49,7 @@ internal static class ServiceCommand
                 Console.WriteLine($"Service '{NativeServiceManager.ServiceName}' installed successfully.");
                 StartServiceCore();
             }
-            catch (Win32Exception ex)
+            catch (Exception ex) when (ex is Win32Exception or InvalidOperationException)
             {
                 Console.Error.WriteLine($"Install failed: {ex.Message}");
             }
@@ -142,9 +142,14 @@ internal static class ServiceCommand
             sc.WaitForStatus(ServiceControllerStatus.Running, TimeSpan.FromSeconds(30));
             Console.WriteLine("Service started.");
         }
-        catch (InvalidOperationException)
+        catch (InvalidOperationException ex)
         {
-            Console.Error.WriteLine($"Service '{NativeServiceManager.ServiceName}' is not installed.");
+            var detail = ex.InnerException?.Message ?? ex.Message;
+            Console.Error.WriteLine($"Failed to start service '{NativeServiceManager.ServiceName}': {detail}");
+        }
+        catch (System.ServiceProcess.TimeoutException)
+        {
+            Console.Error.WriteLine($"Service '{NativeServiceManager.ServiceName}' did not reach Running state within 30s. Check Event Viewer for startup errors.");
         }
     }
 
