@@ -19,6 +19,7 @@ internal static class ConfigureCommand
             if (ConfigureClaudeCode(port)) { configured++; }
             if (ConfigureClaudeDesktop()) { configured++; }
             if (ConfigureCline(port)) { configured++; }
+            if (ConfigureVsCode(port)) { configured++; }
 
             Console.WriteLine(configured == 0
                 ? $"No supported MCP clients detected. Manually add context-bridge to your MCP client config."
@@ -57,6 +58,44 @@ internal static class ConfigureCommand
         catch (Exception ex)
         {
             Console.Error.WriteLine($"  Failed to configure Claude Desktop: {ex.Message}");
+            return false;
+        }
+    }
+
+    private static bool ConfigureVsCode(int port)
+    {
+        var userDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "Code", "User");
+
+        if (!Directory.Exists(userDir)) { return false; }
+
+        var settingsPath = Path.Combine(userDir, "settings.json");
+
+        try
+        {
+            var json = File.Exists(settingsPath)
+                ? JsonNode.Parse(File.ReadAllText(settingsPath))?.AsObject() ?? new JsonObject()
+                : new JsonObject();
+
+            var mcp = json["mcp"]?.AsObject() ?? new JsonObject();
+            var servers = mcp["servers"]?.AsObject() ?? new JsonObject();
+
+            servers["context-bridge"] = new JsonObject
+            {
+                ["type"] = "http",
+                ["url"] = $"http://127.0.0.1:{port}/mcp"
+            };
+            mcp["servers"] = servers;
+            json["mcp"] = mcp;
+
+            File.WriteAllText(settingsPath, json.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+            Console.WriteLine($"  VS Code configured (HTTP transport, port {port}).");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"  Failed to configure VS Code: {ex.Message}");
             return false;
         }
     }

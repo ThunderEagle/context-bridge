@@ -196,6 +196,7 @@ None. The security perimeter is exclusively the Kestrel bind address (`127.0.0.1
 - **Claude Code** (`~/.claude/settings.json` via `claude mcp add`): HTTP transport at `http://127.0.0.1:5290/mcp`
 - **Claude Desktop** (`%APPDATA%\Claude\claude_desktop_config.json`): stdio transport — spawns `context-bridge stdio` as a child process
 - **Cline** (`%APPDATA%\Code\User\globalStorage\saoudrizwan.claude-dev\settings\cline_mcp_settings.json`): HTTP transport — writes `url` entry directly to JSON; file is created if absent
+- **VS Code Chat Agents** (`%APPDATA%\Code\User\settings.json`): HTTP transport — writes to `mcp.servers` key; requires VS Code 1.99+ with native MCP support enabled
 
 ---
 
@@ -264,6 +265,7 @@ The instructions field should direct the LLM to write memories **incrementally**
 | v1 | Claude Code | `~/.claude/settings.json` | `~/.claude/CLAUDE.md` append | `Stop` hook for transcript-based extraction |
 | v1 | Claude Desktop | `claude_desktop_config.json` | — | `instructions` only |
 | v1 | Cline | `%APPDATA%\Code\User\globalStorage\saoudrizwan.claude-dev\settings\cline_mcp_settings.json` | — | HTTP transport (URL-based); detects via globalStorage dir existence |
+| v1 | VS Code Chat Agents | `%APPDATA%\Code\User\settings.json` | — | `mcp.servers` key; `type: "http"` entry; VS Code 1.99+ native MCP support |
 | v2 | Cursor | `~/.cursor/mcp.json` | `~/.cursor/rules/` global rules | |
 | v2 | Devin Desktop (formerly Windsurf) | `~/.codeium/windsurf/mcp_config.json` | cascade rules | Acquired by Cognition, rebranded June 2026; config path appears unchanged but verify before implementing |
 | v3 | Continue.dev | `~/.continue/config.json` | `systemMessage` field | |
@@ -274,7 +276,7 @@ The instructions field should direct the LLM to write memories **incrementally**
 | v4 | Google Antigravity | `~/.gemini/config/mcp_config.json` | custom rules (path TBD — verify before implementing) | Shared across IDE and Antigravity CLI |
 | — | Unknown | — | — | `instructions` only (fallback for future clients) |
 
-**v1 client selection rationale:** Claude Code (HTTP), Claude Desktop (stdio), and Cline (HTTP). All three are confirmed working with the Streamable HTTP transport. Cline was added to v1 because its config is a simple JSON write with the same URL used for Claude Code — zero additional complexity. Cursor and other editors move to v2.
+**v1 client selection rationale:** Claude Code (HTTP), Claude Desktop (stdio), Cline (HTTP), and VS Code Chat Agents (HTTP). All four confirmed working. Cline and VS Code were added to v1 because their configs are simple JSON writes against the same HTTP endpoint — zero additional transport complexity. Cursor and other editors move to v2.
 
 ### Claude Code: Stop Hook Enhancement
 
@@ -329,7 +331,7 @@ For Claude Code specifically, `configure` installs a `Stop` hook that fires when
 - In-process ONNX embedding with bundled model
 - SQLite + sqlite-vec pure vector search
 - Core MCP tools (write, search, list, delete, status)
-- `configure` command for Claude Code, Claude Desktop, and Cline
+- `configure` command for Claude Code, Claude Desktop, Cline, and VS Code Chat Agents
 - Service management via CLI: `context-bridge service install|start|stop|uninstall|status`
 - Two distribution options:
   - `dotnet tool install -g context-bridge` (requires .NET SDK)
