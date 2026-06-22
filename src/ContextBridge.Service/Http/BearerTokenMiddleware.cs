@@ -7,10 +7,15 @@ namespace ContextBridge.Service.Http;
 public sealed class BearerTokenMiddleware(RequestDelegate next, TokenStore tokenStore)
 {
     private const string HealthPath = "/health";
+    private const string DashboardPath = "/dashboard";
+    private const string DashboardApiPath = "/api/dashboard";
 
     public async Task InvokeAsync(HttpContext context)
     {
-        if (context.Request.Path.StartsWithSegments(HealthPath, StringComparison.OrdinalIgnoreCase))
+        var path = context.Request.Path;
+        if (path.StartsWithSegments(HealthPath, StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWithSegments(DashboardPath, StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWithSegments(DashboardApiPath, StringComparison.OrdinalIgnoreCase))
         {
             await next(context);
             return;

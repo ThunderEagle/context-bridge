@@ -5,6 +5,7 @@ using ContextBridge.Infrastructure.Mcp;
 using ContextBridge.Infrastructure.Security;
 using ContextBridge.Infrastructure.Storage;
 using ContextBridge.Service;
+using ContextBridge.Service.Dashboard;
 using ContextBridge.Service.Http;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.AI;
@@ -118,6 +119,7 @@ var app = builder.Build();
 app.UseMiddleware<BearerTokenMiddleware>();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+app.MapDashboard();
 app.MapMcp("/mcp");
 
 await app.RunAsync();

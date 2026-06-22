@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
+    <AssemblyName>context-bridge</AssemblyName>
     <UserSecretsId>dotnet-ContextBridge.Service-b70ce599-1766-4bb4-bc48-1df7ed90ed55</UserSecretsId>
     <PackageId>ThunderEagle.ContextBridge</PackageId>
     <Description>Zero-dependency MCP memory server for AI coding assistants. Runs as a Windows Service with in-process ONNX embeddings and SQLite vector search.</Description>
