@@ -1,7 +1,7 @@
 # ADR-003: DataProtection over Raw DPAPI for Secret Storage
 
 **Date:** 2026-06-20  
-**Status:** Superseded by decision made 2026-06-22  
+**Status:** Superseded (2026-06-22) — bearer token removed; see ADR-015  
 **Deciders:** Scott Williams
 
 ---

@@ -114,6 +114,10 @@ Decisions already captured as ADRs:
 - ADR-010: Streamable HTTP over stdio MCP transport (Phase 4)
 - ADR-011: Tag assignment as client responsibility (Phase 4)
 - ADR-012: Session extraction is instructions-first, not command-driven (Phase 5)
+- ADR-013: Read-only web dashboard
+- ADR-014: HTTPS self-signed cert (Reverted)
+- ADR-015: Localhost-bind-only as the v1 security model
+- ADR-016: stdio transport for Claude Desktop support
 
 ---
 

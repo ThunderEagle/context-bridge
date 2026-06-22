@@ -9,7 +9,7 @@ Pre-release validation guide. Complete all phases before Phase 6 (distribution/r
 ```powershell
 dotnet build          # must be zero warnings — TreatWarningsAsErrors is on
 dotnet test           # all tests pass
-ls "$env:PROGRAMDATA\ContextBridge\models\"   # ONNX model file present
+ls "$env:PROGRAMDATA\ContextBridge\models\all-MiniLM-L6-v2\"   # ONNX model present (downloaded by service install)
 ```
 
 ---
@@ -59,7 +59,6 @@ context-bridge service start
 context-bridge service status
 
 Invoke-RestMethod http://127.0.0.1:5290/health     # {status:"ok"}
-Invoke-RestMethod http://127.0.0.1:5290/mcp        # expect 401 Unauthorized
 ```
 
 **Stop/start durability:**
@@ -73,7 +72,6 @@ Invoke-RestMethod http://127.0.0.1:5290/health     # must return ok
 
 **Checks:**
 - [x] Health endpoint responds after service start
-- [x] `/mcp` returns 401 without an Authorization header
 - [x] Service recovers cleanly after stop/start
 - [x] Windows Event Log shows no errors: `Get-EventLog -LogName Application -Source ContextBridge -Newest 10`
 
@@ -87,13 +85,19 @@ Invoke-RestMethod http://127.0.0.1:5290/health     # must return ok
 context-bridge configure
 ```
 
-**Verify Claude Code** (`~/.claude/settings.json`):
-- Contains `mcpServers.context-bridge` with `type: http`
-- URL is `http://127.0.0.1:5290/` (or configured port)
-- Authorization header is present with `Bearer <token>`
+**Verify Claude Code** (`~/.claude.json` — written by `claude mcp add`):
+- Contains `context-bridge` entry with `type: http` and `url: http://127.0.0.1:5290/mcp`
 
 **Verify Claude Desktop** (`%APPDATA%\Claude\claude_desktop_config.json`):
-- Same MCP entry structure
+- Contains `mcpServers.context-bridge` with `command` pointing to the exe and `args: ["stdio"]`
+
+**stdio smoke test:**
+
+```powershell
+# Run stdio mode directly — should init schema, then wait for MCP frames on stdin
+# Ctrl+C to exit cleanly
+context-bridge stdio
+```
 
 **Verify CLAUDE.md injection** (`~/.claude/CLAUDE.md`):
 - ContextBridge instructions block is present with tool descriptions and tag conventions
@@ -240,10 +244,6 @@ Capture any UX issues, recall failures, or unexpected behavior as GitHub Issues 
 ```powershell
 # Health check
 Invoke-RestMethod http://127.0.0.1:5290/health
-
-# Authenticated call (get token first)
-$token = context-bridge token show
-Invoke-RestMethod http://127.0.0.1:5290/mcp -Headers @{ Authorization = "Bearer $token" }
 
 # Service control
 context-bridge service status

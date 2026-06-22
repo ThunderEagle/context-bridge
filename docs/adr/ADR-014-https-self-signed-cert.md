@@ -1,8 +1,16 @@
 # ADR-014: HTTPS via Programmatically-Generated Self-Signed Certificate
 
 **Date:** 2026-06-22  
-**Status:** Accepted  
+**Status:** Reverted (2026-06-22)  
 **Deciders:** Scott Williams
+
+---
+
+## Reversal Note
+
+This ADR is reverted. The self-signed certificate approach was implemented and committed but could not work with the primary client (Claude Code). Claude Code's MCP client (Node.js `fetch`) rejects self-signed certificates with `UNABLE_TO_VERIFY_LEAF_SIGNATURE` unless TLS verification is disabled globally (`NODE_TLS_REJECT_UNAUTHORIZED=0`), which is a worse security posture than plain HTTP. The certificate was removed in the same session it was introduced.
+
+Claude Desktop support is achieved via stdio transport instead (ADR-016). The security model reverts to localhost-bind-only (ADR-015).
 
 ---
 

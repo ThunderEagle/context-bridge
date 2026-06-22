@@ -130,16 +130,17 @@ An in-process cosine similarity scan across all vectors is a linear operation �
 
 The Streamable HTTP transport replaces the original two-endpoint HTTP+SSE transport (deprecated). Single endpoint, client-initiated requests, server can respond inline or upgrade to an SSE stream for long-running operations. This is the current transport implemented by Claude Desktop and Claude Code.
 
-**Why HTTP service, not stdio:**
+**Dual transport: HTTP for Claude Code, stdio for Claude Desktop**
 
-Stdio spawns one server process per client. With multiple concurrent sessions (Claude Code + Claude Desktop open simultaneously), you get multiple independent processes, each with its own SQLite connection. This breaks the shared memory model.
+The service runs two transport modes from the same binary:
 
-A single HTTP service with one database connection ensures:
+- **HTTP service (Windows Service, `context-bridge` with no args):** Streamable HTTP on `127.0.0.1:5290`. Single persistent process. Claude Code connects here. Multiple Claude Code sessions hit the same process, the same SQLite connection, and see immediately-consistent memory state.
 
-- **Concurrent client access** — multiple coding assistants (Claude Code, Claude Desktop, etc.) share the same service, hit the same SQLite connection, and see immediately-consistent memory state
-- **Web dashboard door** — HTTP service enables future interactive memory management UI (v2+)
+- **stdio subprocess (`context-bridge stdio`):** Spawned by Claude Desktop as a child process, communicating via stdin/stdout. Minimal generic host — no Kestrel, no Windows Service registration. Shares `memories.db` with the HTTP service; SQLite WAL mode ensures safe concurrent multi-process access. Memories written from Desktop are immediately visible to Claude Code and vice versa.
 
-Stdio creates process-local connection state (each process sees a snapshot of the DB at startup time, no live consistency), defeating the entire value of shared memory across multiple tools running simultaneously.
+The HTTP service remains the right answer for Claude Code: a single process with the ONNX model loaded once and warm, serving all concurrent sessions. The stdio path accepts a per-session ONNX load (~500ms) as the cost of Claude Desktop compatibility. For Desktop usage patterns (typically one session at a time), this is acceptable.
+
+See ADR-010 (HTTP transport rationale) and ADR-016 (stdio transport for Claude Desktop).
 
 ### Embedding Provider Abstraction
 **`IEmbeddingGenerator<string, Embedding<float>>` from Microsoft.Extensions.AI**
@@ -182,36 +183,16 @@ This is a personal tool running on a single-user machine. The realistic threat i
 
 The service binds exclusively to `127.0.0.1` (never `0.0.0.0`). This is non-negotiable — it ensures the service is unreachable from outside the machine regardless of firewall state.
 
-### Bearer Token
+### Authentication
 
-A random token is generated on first run (`RandomNumberGenerator.GetBytes(32)` → base64) and required on every inbound request via `Authorization: Bearer <token>`. The service returns 401 to any request without it.
-
-This does not achieve full secret hygiene — MCP clients (Claude Desktop, Claude Code) read server configuration from JSON files, so the token ends up in plain text in those files. There is no clean solution to this while using HTTP-based MCP transport with third-party clients: the client needs the credential at runtime; the client reads from a config file; the credential is in the config file.
-
-What the token *does* provide is meaningful defense-in-depth: a port scan or random probe finds a port but cannot interact with the service. Exploiting it requires an attacker who knows to look for the token in a specific config file location and has filesystem read access to get it — at which point they already have broad access to the machine. The attack surface is narrow and targeted enough that this is an acceptable posture for a personal tool.
-
-The service stores its own copy of the token using `Microsoft.AspNetCore.DataProtection` — the cross-platform equivalent of DPAPI. This works out of the box on Windows (DPAPI), macOS (Keychain with configuration), and Linux (key ring file). Direct DPAPI is avoided to keep the service code platform-agnostic ahead of v3.
+None. The security perimeter is exclusively the Kestrel bind address (`127.0.0.1`). See ADR-015 for the full rationale and future options (named pipe / Unix socket if MCP clients add support).
 
 ### Client Configuration
 
-The `context-bridge configure` CLI command handles token distribution. It detects known MCP client config file locations, reads the token via Data Protection, and writes (or updates) the MCP server entry:
+`context-bridge configure` detects known MCP client config file locations and writes the appropriate transport entry:
 
-```json
-{
-  "mcpServers": {
-    "context-bridge": {
-      "url": "http://127.0.0.1:PORT",
-      "headers": { "Authorization": "Bearer <token>" }
-    }
-  }
-}
-```
-
-`context-bridge token` prints the raw snippet for clients not auto-detected.
-
-### Named Pipe / Unix Socket (Not Used)
-
-Named pipes (Windows) and Unix domain sockets (Mac/Linux) would eliminate the plain-text token problem entirely — the OS enforces user-level access control and no credential is needed. Kestrel supports both. The reason this isn't used: MCP clients configure servers via HTTP URLs and do not currently support named pipe or Unix socket addresses. This would require a local proxy, which adds more complexity than it removes. If MCP client transport support evolves, this is the architecturally cleaner long-term answer.
+- **Claude Code** (`~/.claude/settings.json` via `claude mcp add`): HTTP transport at `http://127.0.0.1:5290/mcp`
+- **Claude Desktop** (`%APPDATA%\Claude\claude_desktop_config.json`): stdio transport — spawns `context-bridge stdio` as a child process
 
 ---
 
@@ -244,9 +225,8 @@ On failure (e.g., run without admin), commands print clear instructions: `"This 
 **First-run flow:**
 1. Install via dotnet tool or download .exe
 2. Open admin PowerShell
-3. `context-bridge service install`
-4. Service starts, generates bearer token, prints it to console
-5. User runs `context-bridge configure` (standard user privileges) to wire up Claude Code + Claude Desktop
+3. `context-bridge service install` — downloads embedding model (~22 MB) if not present, registers and starts service
+4. User runs `context-bridge configure` (standard user privileges) — wires up Claude Code (HTTP) and Claude Desktop (stdio)
 
 ### Code Signing & Distribution
 
