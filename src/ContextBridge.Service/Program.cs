@@ -3,7 +3,6 @@ using ContextBridge.Cli;
 using ContextBridge.Core.Repositories;
 using ContextBridge.Infrastructure.Embedding;
 using ContextBridge.Infrastructure.Mcp;
-using ContextBridge.Infrastructure.Security;
 using ContextBridge.Infrastructure.Storage;
 using ContextBridge.Service;
 using ContextBridge.Service.Dashboard;
@@ -89,23 +88,11 @@ builder.Services
     .WithTools<MemoryMcpTools>();
 
 var port = builder.Configuration.GetValue("ServiceConfig:Port", 5290);
-var thumbprint = builder.Configuration.GetValue<string>("ServiceConfig:CertificateThumbprint");
 
 // Kestrel — localhost only, never 0.0.0.0.
-// HTTPS when a cert thumbprint is configured (installed via 'service install').
-// Falls back to HTTP for local dev runs without a certificate.
 builder.WebHost.ConfigureKestrel(kestrel =>
 {
-    kestrel.Listen(IPAddress.Loopback, port, listenOptions =>
-    {
-        if (!string.IsNullOrWhiteSpace(thumbprint))
-        {
-            listenOptions.UseHttps(https =>
-            {
-                https.ServerCertificateSelector = (_, _) => CertificateManager.FindByThumbprint(thumbprint);
-            });
-        }
-    });
+    kestrel.Listen(IPAddress.Loopback, port);
 });
 
 var app = builder.Build();
