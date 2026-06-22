@@ -140,6 +140,8 @@ The service runs two transport modes from the same binary:
 
 The HTTP service remains the right answer for Claude Code: a single process with the ONNX model loaded once and warm, serving all concurrent sessions. The stdio path accepts a per-session ONNX load (~500ms) as the cost of Claude Desktop compatibility. For Desktop usage patterns (typically one session at a time), this is acceptable.
 
+**stdio implementation constraint — stdout must be clean:** .NET's default console logger writes to stdout. In stdio mode stdout is the MCP JSON-RPC protocol channel; any non-JSON bytes corrupt the framing and cause parse errors on every message. The stdio dispatch path in `Program.cs` clears all logging providers and re-adds the console logger with `LogToStandardErrorThreshold = LogLevel.Trace` so all output goes to stderr. Minimum level is set to `Warning` to suppress the noisy host startup lines.
+
 See ADR-010 (HTTP transport rationale) and ADR-016 (stdio transport for Claude Desktop).
 
 ### Embedding Provider Abstraction
@@ -227,6 +229,8 @@ On failure (e.g., run without admin), commands print clear instructions: `"This 
 2. Open admin PowerShell
 3. `context-bridge service install` — downloads embedding model (~22 MB) if not present, registers and starts service
 4. User runs `context-bridge configure` (standard user privileges) — wires up Claude Code (HTTP) and Claude Desktop (stdio)
+
+**Data directory ACL:** The Windows Service runs as LocalSystem. Files it creates in `%ProgramData%\ContextBridge\` (including `memories.db` and WAL/SHM sidecar files) are created with ACLs that exclude regular user accounts. The stdio subprocess spawned by Claude Desktop runs as the current user and would receive `SQLite Error 8: attempt to write a readonly database` without explicit permission. `Worker.ExecuteAsync()` calls `EnsureDataDirPermissions()` on every service startup, granting the built-in `Users` group `Modify + Synchronize` with `ContainerInherit | ObjectInherit` propagation on the data directory. This self-heals across restarts and requires no reinstall on existing deployments.
 
 ### Code Signing & Distribution
 
@@ -329,8 +333,7 @@ For Claude Code specifically, `configure` installs a `Stop` hook that fires when
 - Two distribution options:
   - `dotnet tool install -g context-bridge` (requires .NET SDK)
   - Direct .exe download from GitHub Releases (one-time SmartScreen warning)
-- Claude Code `Stop` hook for transcript-based extraction
-- Claude Desktop `instructions`-driven incremental writes
+- Claude Desktop and Claude Code `instructions`-driven incremental writes (see ADR-012 — transcript-based extraction via Stop hook was evaluated and dropped)
 
 ### v2 — Third-Party Editors & Core Enhancements
 - Third-party editor support (`configure` for Cline, Cursor, Windsurf)
@@ -373,8 +376,6 @@ Both confirmed the concept is valid. Neither solves the distribution/friction pr
 ## Open Questions
 
 - **Tag-aware search weighting (v2)** — when a memory_search includes tag context, how are results weighted? Options: hard pre-filter (only tagged memories), soft boost (tagged memories ranked higher), or an LLM call inside the MCP that determines relevance weighting dynamically before executing vector search. The LLM-inside-MCP approach is interesting — it could interpret the agent's current task context and decide which tags matter — but adds latency and cost per search call. Worth prototyping in v2 once tagging data exists.
-- **SQLite schema migration strategy** — needs a decision before v1 ships. First-run creates the DB; any v1.x schema change must handle existing installs cleanly. Options: EF Core migrations, FluentMigrator, or a simple `schema_version` table with manual DDL. Skipping this means ad-hoc upgrade code the first time a column is added.
-- **Service command UAC elevation** — `context-bridge service install|uninstall` require admin. Verify whether the application can detect non-admin context and print a helpful error, or if additional UAC elevation request mechanisms are needed.
 - **Memory consolidation / deduplication strategy** — as memory accumulates, define strategy for merging similar entries (if any).
 - **Web dashboard scope** — currently planned for v2+; confirm whether it's a "nice to have" or core to the roadmap.
 

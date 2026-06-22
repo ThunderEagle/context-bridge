@@ -9,7 +9,10 @@ Pre-release validation guide. Complete all phases before Phase 6 (distribution/r
 ```powershell
 dotnet build          # must be zero warnings — TreatWarningsAsErrors is on
 dotnet test           # all tests pass
-ls "$env:PROGRAMDATA\ContextBridge\models\all-MiniLM-L6-v2\"   # ONNX model present (downloaded by service install)
+# After publish, verify bundled assets are present in the install dir:
+$installDir = "$env:LOCALAPPDATA\Programs\ContextBridge"
+ls "$installDir\models\all-MiniLM-L6-v2\*.onnx"   # bundled model (or downloaded to ProgramData by service install)
+ls "$installDir\native\win-x64\vec0.dll"           # sqlite-vec extension
 ```
 
 ---
