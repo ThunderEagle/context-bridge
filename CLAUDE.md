@@ -169,3 +169,9 @@ Write a memory (via `memory_write`) for:
 | 4 — MCP Tools | Complete |
 | 5 — configure + CLAUDE.md injection (extract dropped; see ADR-012) | Complete |
 | 6 — Distribution & Release | Pending |
+
+## Roadmap Conventions
+
+Roadmap tracking lives in `ROADMAP.md` with three tiers: Thoughts, Features, and Designed Features.
+Design stubs live in `docs/roadmap/<slug>.md`.
+Use `/idea`, `/idea --feature`, or `/idea --design` to add entries without interrupting current work.
