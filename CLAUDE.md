@@ -152,9 +152,8 @@ Write a memory (via `memory_write`) for:
 ## Security Model
 
 - Kestrel binds exclusively to `127.0.0.1` — never `0.0.0.0`
-- Bearer token required on all endpoints except `GET /health`
-- Token generated on first run via `RandomNumberGenerator.GetBytes(32)`, stored via DataProtection
-- `context-bridge configure` distributes the token to known MCP client config files
+- No authentication, no TLS — localhost bind is the security perimeter (see ADR-015)
+- Named pipe / Unix socket transport is the future path to a tighter perimeter if MCP clients add support
 
 ---
 
