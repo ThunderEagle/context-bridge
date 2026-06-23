@@ -18,19 +18,19 @@ Named backlog items with clear scope, not yet designed. Use `/idea --feature <na
 
 | Name | Description | Target | Added |
 |------|-------------|--------|-------|
-| Tag-aware search | Add tag filter/boost to `memory_search` — v1 stores tags but search ignores them. Decide weighting model (see Thoughts) before implementing. | v2 | 2026-06-23 |
-| Web dashboard | Read-only local web UI for browsing, auditing, and deleting memories. ADR-013 captures the read-only rationale. | v2 | 2026-06-23 |
-| Configurable embedding provider | Allow Ollama and OpenAI-compatible endpoints as alternatives to the bundled ONNX model. `IEmbeddingGenerator` abstraction is already in place; wire up `OllamaEmbeddingGenerator` and `OpenAIEmbeddingGenerator` from Microsoft.Extensions.AI. | v2 | 2026-06-23 |
-| Memory spaces | Project scoping as a first-class concept beyond tag conventions — explicit namespacing or isolation at the storage layer. | v2 | 2026-06-23 |
-| configure: Cursor | Add Cursor to `configure` auto-detection. Config path: `~/.cursor/mcp.json`; rules injection: `~/.cursor/rules/` global rules directory. | v2 | 2026-06-23 |
-| configure: Devin Desktop | Add Devin Desktop (formerly Windsurf, acquired by Cognition June 2026) to `configure`. Config path appears to be `~/.codeium/windsurf/mcp_config.json` but must be verified before implementing — rebrand may have changed it. | v2 | 2026-06-23 |
-| configure: Continue.dev | Add Continue.dev to `configure`. Config path: `~/.continue/config.json`; instructions via `systemMessage` field. | v3 | 2026-06-23 |
-| configure: OpenCode | Add OpenCode to `configure`. Config path: `~/.config/opencode/opencode.json`; uses `mcp` key with `type: "remote"` (not `mcpServers` schema); instructions only. | v3 | 2026-06-23 |
-| configure: Zed | Add Zed to `configure`. Config path: `%APPDATA%\Zed\settings.json` (Windows) / `~/.config/zed/settings.json`; uses `context_servers` key (not `mcpServers`); instructions only. | v3 | 2026-06-23 |
-| configure: GitHub Copilot | Add GitHub Copilot to `configure`. Verify whether VS Code native MCP path (`mcp.servers`) covers Copilot or if `github.copilot.chat.codeGeneration.instructions` array is the right injection point before implementing. | v3 | 2026-06-23 |
-| configure: OpenAI Codex | Add OpenAI Codex to `configure`. Config path: `~/.codex/config.toml`; instructions via `AGENTS.md` in home dir; shared between CLI and VS Code extension. | v3 | 2026-06-23 |
-| Cross-platform: macOS | macOS distribution via launchd plist as install artifact. `builder.UseWindowsService()` guard is already in place; add `builder.UseSystemd()` branch and launchd plist generation. | v3 | 2026-06-23 |
-| Cross-platform: Linux | Linux distribution via systemd. Same host-layer abstraction as macOS; systemd unit file generation via CLI. | v3 | 2026-06-23 |
+| Tag-aware search | Add tag filter/boost to `memory_search` — v1 stores tags but search ignores them. Decide weighting model (see Thoughts) before implementing. | future | 2026-06-23 |
+| Web dashboard | Read-only local web UI for browsing, auditing, and deleting memories. ADR-013 captures the read-only rationale. | future | 2026-06-23 |
+| Configurable embedding provider | Allow Ollama and OpenAI-compatible endpoints as alternatives to the bundled ONNX model. `IEmbeddingGenerator` abstraction is already in place; wire up `OllamaEmbeddingGenerator` and `OpenAIEmbeddingGenerator` from Microsoft.Extensions.AI. | future | 2026-06-23 |
+| Memory spaces | Project scoping as a first-class concept beyond tag conventions — explicit namespacing or isolation at the storage layer. | future | 2026-06-23 |
+| configure: Cursor | Add Cursor to `configure` auto-detection. Config path: `~/.cursor/mcp.json`; rules injection: `~/.cursor/rules/` global rules directory. | future | 2026-06-23 |
+| configure: Devin Desktop | Add Devin Desktop (formerly Windsurf, acquired by Cognition June 2026) to `configure`. Config path appears to be `~/.codeium/windsurf/mcp_config.json` but must be verified before implementing — rebrand may have changed it. | future | 2026-06-23 |
+| configure: Continue.dev | Add Continue.dev to `configure`. Config path: `~/.continue/config.json`; instructions via `systemMessage` field. | future | 2026-06-23 |
+| configure: OpenCode | Add OpenCode to `configure`. Config path: `~/.config/opencode/opencode.json`; uses `mcp` key with `type: "remote"` (not `mcpServers` schema); instructions only. | future | 2026-06-23 |
+| configure: Zed | Add Zed to `configure`. Config path: `%APPDATA%\Zed\settings.json` (Windows) / `~/.config/zed/settings.json`; uses `context_servers` key (not `mcpServers`); instructions only. | future | 2026-06-23 |
+| configure: GitHub Copilot | Add GitHub Copilot to `configure`. Verify whether VS Code native MCP path (`mcp.servers`) covers Copilot or if `github.copilot.chat.codeGeneration.instructions` array is the right injection point before implementing. | future | 2026-06-23 |
+| configure: OpenAI Codex | Add OpenAI Codex to `configure`. Config path: `~/.codex/config.toml`; instructions via `AGENTS.md` in home dir; shared between CLI and VS Code extension. | future | 2026-06-23 |
+| Cross-platform: macOS | macOS distribution via launchd plist as install artifact. `builder.UseWindowsService()` guard is already in place; add `builder.UseSystemd()` branch and launchd plist generation. | future | 2026-06-23 |
+| Cross-platform: Linux | Linux distribution via systemd. Same host-layer abstraction as macOS; systemd unit file generation via CLI. | future | 2026-06-23 |
 | .msi installer | Windows installer with code signing for zero-friction install + service registration. Code signing cert ~$300+/year — defer until v1 userbase justifies cost. | future | 2026-06-23 |
 | configure: Google Antigravity | Add Google Antigravity to `configure`. Config path: `~/.gemini/config/mcp_config.json`; rules injection path TBD — verify before implementing. | future | 2026-06-23 |
 | Encrypted cloud sync | Optional sync of `memories.db` to a user-supplied cloud store (S3, OneDrive, etc.) for cross-machine availability. | future | 2026-06-23 |
