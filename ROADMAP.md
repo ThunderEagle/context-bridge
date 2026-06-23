@@ -5,6 +5,7 @@
 Unfiltered captures — 1-2 sentences each. Use `/idea <text>` to add.
 
 - currently the ServerInstructions are a hardcoded string inside of the application. Should we expose this as an appsettings configuration entry to allow for editing and fine tuning?  Things like adding additional tags, etc.
+- feature to instruct a client to look through it's native memory system and send that data to context-bridge  An import feature if you will.
 
 ---
 
