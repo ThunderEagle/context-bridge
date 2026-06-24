@@ -118,6 +118,8 @@ Decisions already captured as ADRs:
 - ADR-014: HTTPS self-signed cert (Reverted)
 - ADR-015: Localhost-bind-only as the v1 security model
 - ADR-016: stdio transport for Claude Desktop support
+- ADR-017: Handoff separate table (Phase 5)
+- ADR-018: Custom ILoggerProvider for JSONL file logging
 
 ---
 

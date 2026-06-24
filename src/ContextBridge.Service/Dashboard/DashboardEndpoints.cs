@@ -11,6 +11,21 @@ internal static class DashboardEndpoints
         app.MapGet("/dashboard", () =>
             Results.Content(DashboardHtml.Page, "text/html; charset=utf-8"));
 
+        app.MapGet("/api/dashboard/handoffs", async (
+            IHandoffRepository repository,
+            CancellationToken ct) =>
+        {
+            var handoffs = await repository.ListAsync(null, ct);
+            return Results.Ok(handoffs.Select(h => new
+            {
+                id = h.Id,
+                content = h.Content,
+                project = h.Project,
+                createdAt = h.CreatedAt,
+                expiresAt = h.ExpiresAt
+            }));
+        });
+
         app.MapGet("/api/dashboard/stats", async (
             IMemoryRepository repository,
             CancellationToken ct) =>

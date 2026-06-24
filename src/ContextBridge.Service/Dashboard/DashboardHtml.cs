@@ -294,6 +294,35 @@ internal static class DashboardHtml
               color: var(--muted);
               font-size: 13px;
             }
+
+            .section-title {
+              font-size: 11px;
+              text-transform: uppercase;
+              letter-spacing: 0.06em;
+              color: var(--muted);
+              margin: 28px 0 12px;
+              padding-bottom: 8px;
+              border-bottom: 1px solid var(--border);
+            }
+
+            .project-badge {
+              display: inline-block;
+              background: var(--accent-dim);
+              color: var(--accent);
+              border: 1px solid var(--accent);
+              border-radius: 4px;
+              font-size: 11px;
+              padding: 2px 8px;
+              font-family: monospace;
+            }
+
+            .expiry-label {
+              font-size: 11px;
+              color: var(--muted);
+              margin-left: auto;
+            }
+
+            .expiry-label.near { color: var(--red); }
           </style>
         </head>
         <body>
@@ -324,6 +353,11 @@ internal static class DashboardHtml
                 <div class="value accent" id="stat-total">—</div>
                 <div class="sub">all time</div>
               </div>
+              <div class="stat-card">
+                <div class="label">Handoffs</div>
+                <div class="value accent" id="stat-handoffs">—</div>
+                <div class="sub">active sessions</div>
+              </div>
             </div>
 
             <div class="toolbar">
@@ -343,6 +377,9 @@ internal static class DashboardHtml
               <span class="page-info" id="page-info"></span>
               <button class="btn secondary" id="next-btn">Next →</button>
             </div>
+
+            <h2 class="section-title" id="handoff-section-title" style="display:none">Handoffs</h2>
+            <div id="handoff-list" class="memory-list"></div>
           </div>
 
           <script>
@@ -500,8 +537,64 @@ internal static class DashboardHtml
                 .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
             }
 
+            // ── Handoffs ──────────────────────────────────────────────────────
+            async function loadHandoffs() {
+              try {
+                const r = await fetch(`${BASE}/api/dashboard/handoffs`);
+                if (!r.ok) return;
+                const items = await r.json();
+                document.getElementById('stat-handoffs').textContent = items.length.toLocaleString();
+                renderHandoffs(items);
+              } catch (_) { /* best-effort */ }
+            }
+
+            function renderHandoffs(items) {
+              const list = document.getElementById('handoff-list');
+              const title = document.getElementById('handoff-section-title');
+              if (!items || items.length === 0) {
+                title.style.display = 'none';
+                list.innerHTML = '';
+                return;
+              }
+              title.style.display = '';
+              list.innerHTML = items.map(h => {
+                const project = h.project
+                  ? `<span class="project-badge">${escHtml(h.project)}</span>` : '';
+                const created = new Date(h.createdAt).toLocaleString();
+                const expiresIn = expiresInLabel(h.expiresAt);
+                const near = isNearExpiry(h.expiresAt);
+                const preview = h.content.length > 300
+                  ? escHtml(h.content.slice(0, 300)) + '…'
+                  : escHtml(h.content);
+                return `
+                  <div class="memory-card">
+                    <div class="memory-meta">
+                      <span class="memory-id">#${h.id}</span>
+                      ${project}
+                      <span class="memory-date">${created}</span>
+                      <span class="expiry-label${near ? ' near' : ''}">${expiresIn}</span>
+                    </div>
+                    <div class="memory-content">${preview}</div>
+                  </div>`;
+              }).join('');
+            }
+
+            function expiresInLabel(expiresAt) {
+              const diff = new Date(expiresAt) - Date.now();
+              if (diff <= 0) return 'expired';
+              const days = Math.floor(diff / 86_400_000);
+              if (days >= 1) return `expires in ${days}d`;
+              const hours = Math.floor(diff / 3_600_000);
+              if (hours >= 1) return `expires in ${hours}h`;
+              return 'expires soon';
+            }
+
+            function isNearExpiry(expiresAt) {
+              return (new Date(expiresAt) - Date.now()) < 86_400_000;
+            }
+
             async function refresh() {
-              await Promise.all([loadStats(), loadMemories()]);
+              await Promise.all([loadStats(), loadMemories(), loadHandoffs()]);
             }
 
             // ── Event wiring ──────────────────────────────────────────────────
