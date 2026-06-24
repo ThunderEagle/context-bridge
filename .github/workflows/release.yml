@@ -1,0 +1,93 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  release:
+    name: Build & Release
+    runs-on: windows-latest
+
+    permissions:
+      contents: write   # create GitHub Release + upload assets
+      id-token: write   # NuGet Trusted Publishing OIDC token
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test --no-build --configuration Release --filter "Category!=LocalOnly" --logger "trx;LogFileName=results.trx" --results-directory TestResults
+
+      - name: Derive version (strip leading v from tag)
+        id: ver
+        shell: pwsh
+        run: |
+          $v = "$env:GITHUB_REF_NAME" -replace '^v', ''
+          echo "VERSION=$v" >> $env:GITHUB_OUTPUT
+
+      # --- NuGet tool package ---
+
+      - name: Publish (framework-dependent, for tool package)
+        run: dotnet publish src/ContextBridge.Service --no-build --configuration Release --no-self-contained -o publish/tool
+
+      - name: Pack NuGet tool package
+        shell: pwsh
+        run: |
+          dotnet pack src/ContextBridge.Service -c Release `
+            /p:NuspecFile=ThunderEagle.ContextBridge.nuspec `
+            "/p:NuspecProperties=version=${{ steps.ver.outputs.VERSION }}" `
+            -o nupkg
+
+      # OIDC login happens as late as possible — token expires quickly
+      - name: NuGet login (OIDC)
+        uses: NuGet/login@v1
+        id: nuget-login
+        with:
+          user: ${{ secrets.NUGET_USERNAME }}
+
+      - name: Push to NuGet
+        shell: pwsh
+        run: |
+          Get-ChildItem nupkg -Filter *.nupkg | ForEach-Object {
+            dotnet nuget push $_.FullName `
+              --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" `
+              --source https://api.nuget.org/v3/index.json
+          }
+
+      # --- GitHub Release (self-contained exe) ---
+
+      - name: Publish (self-contained win-x64)
+        run: dotnet publish src/ContextBridge.Service --configuration Release -r win-x64 --self-contained -o publish/win-x64
+
+      - name: Zip release artifact
+        shell: pwsh
+        run: |
+          $version = "${{ steps.ver.outputs.VERSION }}"
+          Compress-Archive -Path publish/win-x64/* -DestinationPath "context-bridge-$version-win-x64.zip"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: context-bridge-*.zip
+          generate_release_notes: true
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: TestResults/*.trx

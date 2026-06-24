@@ -3,6 +3,7 @@ using Microsoft.Extensions.AI;
 
 namespace ContextBridge.Tests.Embedding;
 
+[Trait("Category", "LocalOnly")]
 public sealed class BundledOnnxEmbeddingGeneratorTests : IDisposable
 {
     // Walk up from the test assembly to find the repo root models/ directory
