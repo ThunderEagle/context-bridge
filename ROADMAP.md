@@ -18,6 +18,10 @@ Named backlog items with clear scope, not yet designed. Use `/idea --feature <na
 
 | Name | Description | Target | Added |
 |------|-------------|--------|-------|
+| MCP Registry listing | Publish to registry.modelcontextprotocol.io via `mcp-publisher` CLI. Requires `server.json` manifest at repo root describing install command and tool capabilities. | future | 2026-06-24 |
+| Smithery listing | Submit to smithery.ai. Requires `smithery.yaml` at repo root with install command (`dotnet tool install -g ThunderEagle.ContextBridge`) and tool descriptions. | future | 2026-06-24 |
+| Community directory listings | Submit to mcp.so, Glama, and open a PR to the `awesome-mcp-servers` GitHub list. Form-based; just needs the GitHub repo URL and a short description. | future | 2026-06-24 |
+| NuGet gallery polish | Verify README renders correctly on the NuGet gallery page; add a package icon. | future | 2026-06-24 |
 | Tag-aware search | Add tag filter/boost to `memory_search` — v1 stores tags but search ignores them. Decide weighting model (see Thoughts) before implementing. | future | 2026-06-23 |
 | Web dashboard | Read-only local web UI for browsing, auditing, and deleting memories. ADR-013 captures the read-only rationale. | future | 2026-06-23 |
 | Memory spaces | Project scoping as a first-class concept beyond tag conventions — explicit namespacing or isolation at the storage layer. | future | 2026-06-23 |
