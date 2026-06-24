@@ -1,5 +1,6 @@
 using System.Security.AccessControl;
 using System.Security.Principal;
+using ContextBridge.Core.Repositories;
 using ContextBridge.Infrastructure.Storage;
 using Microsoft.Extensions.AI;
 
@@ -8,7 +9,8 @@ namespace ContextBridge.Service;
 public class Worker(
     ILogger<Worker> logger,
     IEmbeddingGenerator<string, Embedding<float>> embeddingGenerator,
-    SchemaInitializer schemaInitializer) : BackgroundService
+    SchemaInitializer schemaInitializer,
+    IHandoffRepository handoffRepository) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -21,6 +23,13 @@ public class Worker(
         // Initialize / migrate the SQLite schema on every startup
         await schemaInitializer.InitializeAsync(stoppingToken);
         logger.LogInformation("Storage schema initialized");
+
+        // Remove expired handoffs that were never acknowledged
+        var purged = await handoffRepository.PurgeExpiredAsync(stoppingToken);
+        if (purged > 0)
+        {
+            logger.LogInformation("Purged {Count} expired handoff(s)", purged);
+        }
 
         // The service runs as LocalSystem. Ensure the data directory grants the Users group
         // Modify access so the stdio subprocess (running as the current user) can write memories.db.

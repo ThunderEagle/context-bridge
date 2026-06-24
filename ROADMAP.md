@@ -53,5 +53,5 @@ Features with a full design doc and a target version. Use `/idea --design <name>
 
 | Name | Design Doc | Target Version |
 |------|-----------|----------------|
-| Handoff | [docs/roadmap/handoff.md](docs/roadmap/handoff.md) | — |
+| ~~Handoff~~ | [docs/roadmap/handoff.md](docs/roadmap/handoff.md) | v1 ✓ |
 | Server Instructions Override | [docs/roadmap/server-instructions-override.md](docs/roadmap/server-instructions-override.md) | — |

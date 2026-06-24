@@ -95,6 +95,70 @@ ContextBridge exposes seven MCP tools for your AI assistants to use:
 - `type:pattern` — recurring patterns or conventions
 - `type:reference` — pointers to external resources or documentation
 
+## Handoff — Resuming Sessions
+
+Memories are permanent facts. A **handoff** is something different: ephemeral session state that lets you resume where you left off in a future session, without reloading conversation history.
+
+### How it works
+
+**At the end of a session**, ask your AI assistant to save its state:
+
+> "Save a handoff for project context-bridge with what we were working on."
+
+The model calls `handoff_write` with a summary of current work — decisions made, next steps, open questions — scoped to the project.
+
+**At the start of the next session**, the model calls `handoff_list` automatically (via server instructions) and incorporates any prior handoff as its opening context. It then calls `handoff_acknowledge` to remove the handoff once processed.
+
+### Handoff tools
+
+| Tool | Purpose |
+|---|---|
+| `handoff_write` | Capture session state — what you're working on, decisions made, next steps |
+| `handoff_list` | Retrieve active handoffs, optionally filtered by project |
+| `handoff_acknowledge` | Remove a handoff after processing it (permanent deletion) |
+
+**Key parameters for `handoff_write`:**
+- `content` — the session summary (free-form text)
+- `project` — project identifier, e.g. `context-bridge` (optional but recommended)
+- `ttl_days` — how many days to keep the handoff before auto-expiry (default: 7)
+
+### Handoffs vs. memories
+
+| | Memories | Handoffs |
+|---|---|---|
+| **Purpose** | Durable facts, decisions, preferences | Ephemeral "where I was" snapshots |
+| **Lifespan** | Permanent (until explicitly deleted) | TTL-bounded (default 7 days) |
+| **Search** | Semantic search via `memory_search` | Exact lookup via `handoff_list` |
+| **Cleanup** | `memory_delete` | `handoff_acknowledge` (or TTL expiry) |
+
+Do not convert handoff content to memories automatically. Memories are for facts that will remain true indefinitely. If something from a resumed session rises to that level, write it via `memory_write` separately.
+
+### Explicit resumption
+
+If your MCP client supports the prompts capability (e.g. Claude Code), you can trigger a session resumption explicitly:
+
+```
+/mcp__context-bridge__resume-session context-bridge
+```
+
+This invokes the `resume-session` named prompt, which tells the model to look up any handoff for the specified project and incorporate it.
+
+### Expiry and reliability
+
+Handoffs expire after `ttl_days` and are purged on service startup. If a session crashes before `handoff_acknowledge` is called, the handoff survives until its TTL — it will surface again in the next session's `handoff_list` call.
+
+## Importing Existing Context
+
+If you've been using Claude Code's built-in file-based memory (`~/.claude/projects/<name>/memory/`), you can migrate that context into ContextBridge without any special tooling. Just ask:
+
+> "Check your memory files and add any relevant entries to context-bridge using `memory_batch_write`."
+
+Claude Code reads its own memory index, iterates the entries, and calls `memory_batch_write` to store them in ContextBridge — where they become semantically searchable and visible to all connected clients immediately.
+
+You can scope the request: *"import only entries tagged `project:my-repo`"* or *"add everything in your memory files."*
+
+Once imported, you can remove the original file-based entries to avoid maintaining two stores. ContextBridge becomes the single source of truth, shared across Claude Code, Claude Desktop, and any other connected client.
+
 ## CLI Reference
 
 All functionality is controlled via the `context-bridge` command. Run from any command-line (admin PowerShell required for service install/uninstall/config set).

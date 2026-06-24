@@ -6,13 +6,13 @@ namespace ContextBridge.Infrastructure.Storage;
 
 public sealed class SchemaInitializer(SqliteConnectionFactory factory)
 {
-    private const int CurrentVersion = 1;
+    private const int CurrentVersion = 2;
 
     public async Task InitializeAsync(CancellationToken ct = default)
     {
         await using var connection = factory.Create();
 
-        int version = await GetSchemaVersionAsync(connection, ct);
+        var version = await GetSchemaVersionAsync(connection, ct);
 
         if (version < CurrentVersion)
         {
@@ -45,6 +45,11 @@ public sealed class SchemaInitializer(SqliteConnectionFactory factory)
         if (fromVersion < 1)
         {
             await ApplyV1Async(connection, transaction, ct);
+        }
+
+        if (fromVersion < 2)
+        {
+            await ApplyV2Async(connection, transaction, ct);
         }
 
         if (fromVersion == 0)
@@ -97,6 +102,25 @@ public sealed class SchemaInitializer(SqliteConnectionFactory factory)
                 tag_id    INTEGER NOT NULL REFERENCES tags(id),
                 PRIMARY KEY (memory_id, tag_id)
             );
+            """,
+            transaction: transaction,
+            cancellationToken: ct));
+    }
+
+    private static async Task ApplyV2Async(SqliteConnection connection, DbTransaction transaction, CancellationToken ct)
+    {
+        await connection.ExecuteAsync(new CommandDefinition(
+            """
+            CREATE TABLE IF NOT EXISTS handoffs (
+                id         INTEGER PRIMARY KEY,
+                content    TEXT    NOT NULL,
+                project    TEXT    NULL,
+                created_at TEXT    NOT NULL,
+                expires_at TEXT    NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_handoffs_project
+                ON handoffs(project) WHERE project IS NOT NULL;
             """,
             transaction: transaction,
             cancellationToken: ct));

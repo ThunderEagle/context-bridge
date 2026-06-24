@@ -34,6 +34,13 @@ const string mcpInstructions =
     - type:reference — pointer to external resources, docs, or issue trackers
 
     Write memories incrementally during the session. Do not batch everything for session end.
+
+    Handoff — session state bridging (ephemeral, not a memory):
+    - handoff_write — capture current session state before ending a work session. Include: what you were working on, key decisions made, next steps, and any blockers. Pass project: <repo-name> to scope the handoff.
+    - handoff_list — call at the start of every session to check for a prior handoff. Filter by project when the working directory is known.
+    - handoff_acknowledge — call immediately after processing a handoff from handoff_list. This removes it permanently; do not call if no handoff was found.
+
+    Handoffs are not memories. Do not convert handoff content to memories automatically; write memories only for facts that independently warrant permanent storage.
     """;
 
 // stdio mode — spawned by Claude Desktop; minimal host, no HTTP stack.
@@ -61,6 +68,7 @@ if (args.Length > 0 && args[0].Equals("stdio", StringComparison.OrdinalIgnoreCas
         new SqliteConnectionFactory(Path.Combine(programDataPath, "memories.db"), stdioVecPath));
     stdioBuilder.Services.AddSingleton<SchemaInitializer>();
     stdioBuilder.Services.AddSingleton<IMemoryRepository, MemoryRepository>();
+    stdioBuilder.Services.AddSingleton<IHandoffRepository, HandoffRepository>();
 
     stdioBuilder.Services
         .AddMcpServer(options =>
@@ -69,7 +77,9 @@ if (args.Length > 0 && args[0].Equals("stdio", StringComparison.OrdinalIgnoreCas
             options.ServerInstructions = mcpInstructions;
         })
         .WithStdioServerTransport()
-        .WithTools<MemoryMcpTools>();
+        .WithTools<MemoryMcpTools>()
+        .WithTools<HandoffMcpTools>()
+        .WithPrompts<HandoffMcpPrompts>();
 
     var stdioHost = stdioBuilder.Build();
     await stdioHost.Services.GetRequiredService<SchemaInitializer>()
@@ -115,6 +125,7 @@ var vecExtensionPath = SqliteConnectionFactory.ResolveVecExtensionPath();
 builder.Services.AddSingleton(new SqliteConnectionFactory(dbPath, vecExtensionPath));
 builder.Services.AddSingleton<SchemaInitializer>();
 builder.Services.AddSingleton<IMemoryRepository, MemoryRepository>();
+builder.Services.AddSingleton<IHandoffRepository, HandoffRepository>();
 
 // Background worker for warm-up and schema init
 builder.Services.AddHostedService<Worker>();
@@ -128,7 +139,9 @@ builder.Services
         options.ServerInstructions = mcpInstructions;
     })
     .WithHttpTransport()
-    .WithTools<MemoryMcpTools>();
+    .WithTools<MemoryMcpTools>()
+    .WithTools<HandoffMcpTools>()
+    .WithPrompts<HandoffMcpPrompts>();
 
 var port = builder.Configuration.GetValue("ServiceConfig:Port", 5290);
 
