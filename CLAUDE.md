@@ -176,3 +176,18 @@ Write a memory (via `memory_write`) for:
 Roadmap tracking lives in `ROADMAP.md` with three tiers: Thoughts, Features, and Designed Features.
 Design stubs live in `docs/roadmap/<slug>.md`.
 Use `/idea`, `/idea --feature`, or `/idea --design` to add entries without interrupting current work.
+
+**Tier guidance:**
+
+- **Thoughts** — unfiltered captures, 1-2 sentences, no commitment. Use when an idea surfaces mid-session and you don't want to lose it. No design required.
+- **Features** — named backlog items with clear scope. Use when the idea is concrete enough to describe but not yet designed. Include `Target` (version or "future") and `Added` date.
+- **Designed Features** — features with a full design doc in `docs/roadmap/<slug>.md` and a target version. Do not add here without the design doc existing.
+
+**When to add to ROADMAP.md vs. write an ADR:**
+- ROADMAP.md = future work not yet started
+- ADR = decision already made and implemented (or being implemented now)
+
+**Do not:**
+- Add in-progress work to ROADMAP.md — use tasks or the current session context
+- Promote a Thought to a Feature without fleshing out scope
+- Add a Designed Feature entry without a corresponding `docs/roadmap/<slug>.md` file

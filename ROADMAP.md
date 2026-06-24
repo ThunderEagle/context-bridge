@@ -26,7 +26,8 @@ Named backlog items with clear scope, not yet designed. Use `/idea --feature <na
 | Web dashboard | Read-only local web UI for browsing, auditing, and deleting memories. ADR-013 captures the read-only rationale. | future | 2026-06-23 |
 | Memory spaces | Project scoping as a first-class concept beyond tag conventions — explicit namespacing or isolation at the storage layer. | future | 2026-06-23 |
 | Cross-platform: macOS | macOS distribution via launchd plist as install artifact. `builder.UseWindowsService()` guard is already in place; add `builder.UseSystemd()` branch and launchd plist generation. | future | 2026-06-23 |
-| Cross-platform: Linux | Linux distribution via systemd. Same host-layer abstraction as macOS; systemd unit file generation via CLI. | future | 2026-06-23 |
+| Cross-platform: Linux | Linux distribution via systemd. Same host-layer abstraction as macOS; systemd unit file generation via CLI. Testable via WSL2 on Windows (systemd available since Windows 11 22H2). | future | 2026-06-23 |
+| Container distribution | Publish OCI image to ghcr.io via `dotnet publish /t:PublishContainer` — no Dockerfile or Docker Desktop required. Covers macOS and Linux users without native daemon integration. Bind address must be `0.0.0.0` inside the container; host-side restriction enforced via Docker port mapping (`-p 127.0.0.1:PORT:PORT`). GitHub Actions publishes automatically on release tags using `GITHUB_TOKEN`. | future | 2026-06-24 |
 | .msi installer | Windows installer with code signing for zero-friction install + service registration. Code signing cert ~$300+/year — defer until v1 userbase justifies cost. | future | 2026-06-23 |
 | Encrypted cloud sync | Optional sync of `memories.db` to a user-supplied cloud store (S3, OneDrive, etc.) for cross-machine availability. | future | 2026-06-23 |
 
