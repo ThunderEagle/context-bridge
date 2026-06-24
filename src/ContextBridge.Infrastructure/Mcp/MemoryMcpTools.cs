@@ -3,6 +3,7 @@ using System.Text.Json;
 using ContextBridge.Core.Models;
 using ContextBridge.Core.Repositories;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 
 namespace ContextBridge.Infrastructure.Mcp;
@@ -10,7 +11,8 @@ namespace ContextBridge.Infrastructure.Mcp;
 [McpServerToolType]
 public sealed class MemoryMcpTools(
     IMemoryRepository repository,
-    IEmbeddingGenerator<string, Embedding<float>> embedder)
+    IEmbeddingGenerator<string, Embedding<float>> embedder,
+    ILogger<MemoryMcpTools> logger)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -21,6 +23,11 @@ public sealed class MemoryMcpTools(
         [Description("Optional classification tags. Use project:<repo-name> for scope and type:decision|preference|pattern|reference for classification.")] string[]? tags = null,
         CancellationToken cancellationToken = default)
     {
+        if (logger.IsEnabled(LogLevel.Debug))
+        {
+            logger.LogDebug("memory_write content_length={ContentLength} tag_count={TagCount}", content.Length, tags?.Length ?? 0);
+        }
+
         var embedding = await EmbedAsync(content, cancellationToken);
         var id = await repository.WriteAsync(content, embedding, tags, cancellationToken);
         return JsonSerializer.Serialize(new { id }, JsonOptions);
@@ -32,6 +39,8 @@ public sealed class MemoryMcpTools(
         [Description("The memories to store.")] MemoryBatchEntry[] memories,
         CancellationToken cancellationToken = default)
     {
+        logger.LogDebug("memory_batch_write count={Count}", memories.Length);
+
         var contents = memories.Select(m => m.Content).ToList();
         var embeddings = await embedder.GenerateAsync(contents, cancellationToken: cancellationToken);
 
@@ -50,6 +59,8 @@ public sealed class MemoryMcpTools(
         [Description("Maximum number of results to return. Defaults to 10.")] int limit = 10,
         CancellationToken cancellationToken = default)
     {
+        logger.LogDebug("memory_search query_length={QueryLength} limit={Limit}", query.Length, limit);
+
         var embedding = await EmbedAsync(query, cancellationToken);
         var results = await repository.SearchAsync(embedding, limit, cancellationToken);
         return JsonSerializer.Serialize(results.Select(r => new
@@ -71,6 +82,11 @@ public sealed class MemoryMcpTools(
         [Description("Optional tag filter. Only memories matching ALL supplied tags are returned.")] string[]? tags = null,
         CancellationToken cancellationToken = default)
     {
+        if (logger.IsEnabled(LogLevel.Debug))
+        {
+            logger.LogDebug("memory_list page={Page} page_size={PageSize} tag_count={TagCount}", page, pageSize, tags?.Length ?? 0);
+        }
+
         var (items, totalCount) = await repository.ListAsync(page, pageSize, tags, cancellationToken);
         return JsonSerializer.Serialize(new
         {
@@ -87,6 +103,8 @@ public sealed class MemoryMcpTools(
         [Description("The ID of the memory to delete.")] long id,
         CancellationToken cancellationToken = default)
     {
+        logger.LogDebug("memory_delete id={Id}", id);
+
         var deleted = await repository.DeleteAsync(id, cancellationToken);
         return JsonSerializer.Serialize(new { deleted }, JsonOptions);
     }
@@ -98,6 +116,8 @@ public sealed class MemoryMcpTools(
         [Description("The new content to store.")] string content,
         CancellationToken cancellationToken = default)
     {
+        logger.LogDebug("memory_update id={Id} content_length={ContentLength}", id, content.Length);
+
         var embedding = await EmbedAsync(content, cancellationToken);
         var updated = await repository.UpdateAsync(id, content, embedding, cancellationToken);
         return JsonSerializer.Serialize(new { updated }, JsonOptions);
@@ -107,6 +127,8 @@ public sealed class MemoryMcpTools(
     [McpServerTool(Name = "memory_status")]
     public async Task<string> MemoryStatusAsync(CancellationToken cancellationToken = default)
     {
+        logger.LogDebug("memory_status");
+
         var status = await repository.GetStatusAsync(cancellationToken);
         return JsonSerializer.Serialize(new
         {

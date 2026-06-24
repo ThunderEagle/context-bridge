@@ -2,6 +2,7 @@ using ContextBridge.Core.Repositories;
 using ContextBridge.Infrastructure.Storage;
 using Dapper;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ContextBridge.Tests.Storage;
 
@@ -17,7 +18,7 @@ public sealed class HandoffRepositoryTests : IAsyncLifetime
 
         // Pass null vec extension — handoffs have no vec dependency.
         _factory = new SqliteConnectionFactory(_dbPath, vecExtensionPath: null);
-        _repository = new HandoffRepository(_factory);
+        _repository = new HandoffRepository(_factory, NullLogger<HandoffRepository>.Instance);
 
         await using var connection = _factory.Create();
         await connection.ExecuteAsync(

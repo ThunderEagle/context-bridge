@@ -2,11 +2,11 @@ using System.Globalization;
 using ContextBridge.Core.Models;
 using ContextBridge.Core.Repositories;
 using Dapper;
-using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Logging;
 
 namespace ContextBridge.Infrastructure.Storage;
 
-public sealed class HandoffRepository(SqliteConnectionFactory factory) : IHandoffRepository
+public sealed class HandoffRepository(SqliteConnectionFactory factory, ILogger<HandoffRepository> logger) : IHandoffRepository
 {
     public async Task<long> WriteAsync(
         string content,
@@ -22,8 +22,10 @@ public sealed class HandoffRepository(SqliteConnectionFactory factory) : IHandof
             new { content, project, now, expiresAt = expiresAt.ToString("O") },
             cancellationToken: ct));
 
-        return await connection.ExecuteScalarAsync<long>(
+        var id = await connection.ExecuteScalarAsync<long>(
             new CommandDefinition("SELECT last_insert_rowid()", cancellationToken: ct));
+        if (logger.IsEnabled(LogLevel.Debug)) { logger.LogDebug("handoff written id={Id} project={Project}", id, project); }
+        return id;
     }
 
     public async Task<IReadOnlyList<HandoffRecord>> ListAsync(
@@ -69,6 +71,7 @@ public sealed class HandoffRepository(SqliteConnectionFactory factory) : IHandof
             new { id },
             cancellationToken: ct));
 
+        if (logger.IsEnabled(LogLevel.Debug)) { logger.LogDebug("handoff acknowledge id={Id} found={Found}", id, rows > 0); }
         return rows > 0;
     }
 
@@ -76,10 +79,12 @@ public sealed class HandoffRepository(SqliteConnectionFactory factory) : IHandof
     {
         await using var connection = factory.Create();
 
-        return await connection.ExecuteAsync(new CommandDefinition(
+        var count = await connection.ExecuteAsync(new CommandDefinition(
             "DELETE FROM handoffs WHERE expires_at < @now",
             new { now = UtcNow() },
             cancellationToken: ct));
+        if (logger.IsEnabled(LogLevel.Debug)) { logger.LogDebug("purge expired count={Count}", count); }
+        return count;
     }
 
     private static HandoffRecord ToRecord(HandoffRow row) =>

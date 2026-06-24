@@ -5,10 +5,11 @@ using ContextBridge.Core.Models;
 using ContextBridge.Core.Repositories;
 using Dapper;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Logging;
 
 namespace ContextBridge.Infrastructure.Storage;
 
-public sealed class MemoryRepository(SqliteConnectionFactory factory) : IMemoryRepository
+public sealed class MemoryRepository(SqliteConnectionFactory factory, ILogger<MemoryRepository> logger) : IMemoryRepository
 {
     public async Task<long> WriteAsync(
         string content,
@@ -28,6 +29,7 @@ public sealed class MemoryRepository(SqliteConnectionFactory factory) : IMemoryR
         }
 
         await transaction.CommitAsync(ct);
+        if (logger.IsEnabled(LogLevel.Debug)) { logger.LogDebug("memory written id={Id}", id); }
         return id;
     }
 
@@ -53,6 +55,7 @@ public sealed class MemoryRepository(SqliteConnectionFactory factory) : IMemoryR
         }
 
         await transaction.CommitAsync(ct);
+        if (logger.IsEnabled(LogLevel.Debug)) { logger.LogDebug("batch write committed count={Count}", ids.Count); }
         return ids;
     }
 
@@ -104,13 +107,16 @@ public sealed class MemoryRepository(SqliteConnectionFactory factory) : IMemoryR
 
         var distanceByRowid = candidates.ToDictionary(c => c.Rowid, c => c.Distance);
 
-        return rows
+        var results = rows
             .OrderBy(r => distanceByRowid[r.Id])
             .Take(limit)
             .Select(r => new MemorySearchResult(
                 ToRecord(r, tagsByMemoryId.GetValueOrDefault(r.Id, [])),
                 (float)distanceByRowid[r.Id]))
             .ToList();
+
+        if (logger.IsEnabled(LogLevel.Debug)) { logger.LogDebug("search returned {ResultCount} of {CandidateCount} candidates limit={Limit}", results.Count, candidates.Count, limit); }
+        return results;
     }
 
     public async Task<(IReadOnlyList<MemoryRecord> Items, int TotalCount)> ListAsync(
@@ -204,6 +210,7 @@ public sealed class MemoryRepository(SqliteConnectionFactory factory) : IMemoryR
             new { id, updatedAt = UtcNow() },
             cancellationToken: ct));
 
+        if (logger.IsEnabled(LogLevel.Debug)) { logger.LogDebug("memory delete id={Id} found={Found}", id, rows > 0); }
         return rows > 0;
     }
 
@@ -240,6 +247,7 @@ public sealed class MemoryRepository(SqliteConnectionFactory factory) : IMemoryR
             cancellationToken: ct));
 
         await transaction.CommitAsync(ct);
+        if (logger.IsEnabled(LogLevel.Debug)) { logger.LogDebug("memory update id={Id} found=true", id); }
         return true;
     }
 

@@ -2,6 +2,7 @@ using ContextBridge.Core.Models;
 using ContextBridge.Core.Repositories;
 using ContextBridge.Infrastructure.Storage;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ContextBridge.Tests.Storage;
 
@@ -26,7 +27,7 @@ public sealed class MemoryRepositoryTests : IAsyncLifetime
         }
 
         _factory = new SqliteConnectionFactory(_dbPath, _vecExtensionPath);
-        _repository = new MemoryRepository(_factory);
+        _repository = new MemoryRepository(_factory, NullLogger<MemoryRepository>.Instance);
 
         var initializer = new SchemaInitializer(_factory);
         await initializer.InitializeAsync();

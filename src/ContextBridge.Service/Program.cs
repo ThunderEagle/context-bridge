@@ -2,6 +2,7 @@ using System.Net;
 using ContextBridge.Cli;
 using ContextBridge.Core.Repositories;
 using ContextBridge.Infrastructure.Embedding;
+using ContextBridge.Infrastructure.Logging;
 using ContextBridge.Infrastructure.Mcp;
 using ContextBridge.Infrastructure.Storage;
 using ContextBridge.Service;
@@ -109,6 +110,9 @@ builder.Configuration.AddJsonFile(
     Path.Combine(programDataPath, "appsettings.json"),
     optional: true,
     reloadOnChange: true);
+
+builder.Logging.AddProvider(
+    new JsonlFileLoggerProvider(Path.Combine(programDataPath, "logs"), retainedDays: 7));
 
 // Models are installed to ProgramData by 'service install'; fall back to BaseDirectory for dev.
 // Factory registration (not eager instance) so ONNX session creation happens after SERVICE_RUNNING

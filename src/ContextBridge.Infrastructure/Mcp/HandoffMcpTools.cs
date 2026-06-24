@@ -1,12 +1,13 @@
 using System.ComponentModel;
 using System.Text.Json;
 using ContextBridge.Core.Repositories;
+using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 
 namespace ContextBridge.Infrastructure.Mcp;
 
 [McpServerToolType]
-public sealed class HandoffMcpTools(IHandoffRepository repository)
+public sealed class HandoffMcpTools(IHandoffRepository repository, ILogger<HandoffMcpTools> logger)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -18,6 +19,11 @@ public sealed class HandoffMcpTools(IHandoffRepository repository)
         [Description("Time-to-live in days before the handoff expires. Defaults to 7.")] int ttlDays = 7,
         CancellationToken cancellationToken = default)
     {
+        if (logger.IsEnabled(LogLevel.Debug))
+        {
+            logger.LogDebug("handoff_write project={Project} content_length={ContentLength} ttl_days={TtlDays}", project, content.Length, ttlDays);
+        }
+
         var expiresAt = DateTimeOffset.UtcNow.AddDays(ttlDays);
         var id = await repository.WriteAsync(content, project, expiresAt, cancellationToken);
         return JsonSerializer.Serialize(new { id, expires_at = expiresAt }, JsonOptions);
@@ -29,6 +35,11 @@ public sealed class HandoffMcpTools(IHandoffRepository repository)
         [Description("Optional project identifier to filter handoffs. If omitted, all active handoffs are returned.")] string? project = null,
         CancellationToken cancellationToken = default)
     {
+        if (logger.IsEnabled(LogLevel.Debug))
+        {
+            logger.LogDebug("handoff_list project={Project}", project);
+        }
+
         var handoffs = await repository.ListAsync(project, cancellationToken);
         return JsonSerializer.Serialize(handoffs.Select(h => new
         {
@@ -46,6 +57,11 @@ public sealed class HandoffMcpTools(IHandoffRepository repository)
         [Description("The ID of the handoff to acknowledge and remove.")] long id,
         CancellationToken cancellationToken = default)
     {
+        if (logger.IsEnabled(LogLevel.Debug))
+        {
+            logger.LogDebug("handoff_acknowledge id={Id}", id);
+        }
+
         var acknowledged = await repository.AcknowledgeAsync(id, cancellationToken);
         return JsonSerializer.Serialize(new { acknowledged }, JsonOptions);
     }
