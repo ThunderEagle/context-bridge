@@ -41,11 +41,9 @@ publish/
 models/**/*.onnx
 models/**/vocab.txt
 
-# Native extension binaries — downloaded at service install time, not committed
-# Place vec0.dll in native/win-x64/ for local dev; obtained from sqlite-vec GitHub releases
-native/**/*.dll
-native/**/*.dylib
-native/**/*.so
+# Native extension binaries — committed to repo so they are available at CI pack time
+# vec0.dll is bundled into the NuGet tool package and staged to ProgramData by 'service install'
+# Source: sqlite-vec GitHub releases (https://github.com/asg017/sqlite-vec/releases)
 
 # Local dev secrets / config overrides
 appsettings.Local.json

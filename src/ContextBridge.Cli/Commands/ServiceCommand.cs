@@ -15,6 +15,13 @@ internal static class ServiceCommand
     private static readonly string ManifestSourceDir = Path.Combine(
         AppContext.BaseDirectory, "models", "all-MiniLM-L6-v2");
 
+    private static readonly string NativeDataDir = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+        "ContextBridge", "native");
+
+    private static readonly string NativeSourceDir = Path.Combine(
+        AppContext.BaseDirectory, "native", "win-x64");
+
     public static Command Build()
     {
         var cmd = new Command("service", "Manage the ContextBridge Windows Service");
@@ -39,6 +46,11 @@ internal static class ServiceCommand
             }
 
             if (!await EnsureModelAsync(parseResult.GetValue(yes), cancellationToken))
+            {
+                return;
+            }
+
+            if (!EnsureVecExtension())
             {
                 return;
             }
@@ -170,6 +182,29 @@ internal static class ServiceCommand
         {
             // Not installed — nothing to stop
         }
+    }
+
+    private static bool EnsureVecExtension()
+    {
+        const string fileName = "vec0.dll";
+        var dest = Path.Combine(NativeDataDir, fileName);
+        if (File.Exists(dest))
+        {
+            return true;
+        }
+
+        var src = Path.Combine(NativeSourceDir, fileName);
+        if (!File.Exists(src))
+        {
+            Console.Error.WriteLine($"  vec0 extension not found at: {src}");
+            Console.Error.WriteLine("  Re-install the tool package and try again.");
+            return false;
+        }
+
+        Directory.CreateDirectory(NativeDataDir);
+        File.Copy(src, dest);
+        Console.WriteLine($"  Staged vec0 extension to: {dest}");
+        return true;
     }
 
     /// <summary>

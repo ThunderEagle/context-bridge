@@ -5,7 +5,7 @@
     <AssemblyName>context-bridge</AssemblyName>
     <UserSecretsId>dotnet-ContextBridge.Service-b70ce599-1766-4bb4-bc48-1df7ed90ed55</UserSecretsId>
     <PackageId>ThunderEagle.ContextBridge</PackageId>
-    <Version>1.0.0</Version>
+    <Version>1.0.1</Version>
     <IsPackable>true</IsPackable>
     <Description>Zero-dependency MCP memory server for AI coding assistants. Runs as a Windows Service with in-process ONNX embeddings and SQLite vector search.</Description>
     <PackageTags>mcp;ai;memory;claude;llm;embeddings;onnx;sqlite</PackageTags>
