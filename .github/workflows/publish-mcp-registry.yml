@@ -1,0 +1,76 @@
+name: Publish to MCP Registry
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish (e.g. 1.0.1)"
+        required: true
+        type: string
+
+jobs:
+  publish:
+    name: Publish to MCP Registry
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write   # Required for GitHub OIDC authentication
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Derive version
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "VERSION=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Wait for NuGet package to be available
+        shell: pwsh
+        run: |
+          $id = "thundereagle.contextbridge"
+          $version = "${{ steps.ver.outputs.VERSION }}"
+          $url = "https://api.nuget.org/v3-flatcontainer/$id/$version/readme"
+          $elapsed = 0; $interval = 15; $timeout = 300
+          Write-Host "Waiting for NuGet package $id $version..."
+          while ($true) {
+            if ($elapsed -gt $timeout) {
+              Write-Error "NuGet package README not available after $elapsed seconds. URL: $url"
+              exit 1
+            }
+            try {
+              Invoke-WebRequest -Uri $url -ErrorAction Stop | Out-Null
+              Write-Host "Package README is available."
+              break
+            } catch {
+              Write-Host "Not yet available. Elapsed: $elapsed s. Retrying in $interval s..."
+              Start-Sleep -Seconds $interval
+              $elapsed += $interval
+            }
+          }
+
+      - name: Patch version in server.json
+        run: |
+          VERSION=${{ steps.ver.outputs.VERSION }}
+          jq --arg v "$VERSION" '.version = $v | .packages[0].version = $v' .mcp/server.json > .mcp/server.tmp
+          mv .mcp/server.tmp .mcp/server.json
+
+      - name: Install mcp-publisher
+        run: |
+          curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" \
+            | tar xz mcp-publisher
+          chmod +x mcp-publisher
+
+      - name: Authenticate to MCP Registry (GitHub OIDC)
+        run: ./mcp-publisher login github-oidc
+
+      - name: Publish to MCP Registry
+        run: ./mcp-publisher publish .mcp/server.json

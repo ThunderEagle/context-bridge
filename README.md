@@ -1,3 +1,4 @@
+<!-- mcp-name: io.github.ThunderEagle/context-bridge -->
 # ContextBridge
 
 A zero-dependency MCP memory server for Windows that gives AI coding assistants a shared, persistent memory layer with semantic search.

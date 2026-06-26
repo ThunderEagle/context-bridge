@@ -1,0 +1,15 @@
+# ContextBridge — Windows-only MCP memory server (Windows Service + stdio mode)
+# Smithery invokes the server via stdio using the installed global tool.
+# Install: dotnet tool install -g ThunderEagle.ContextBridge (requires .NET 10, Windows)
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties: {}
+    required: []
+    additionalProperties: false
+  commandFunction: |-
+    (_config) => ({
+      command: "context-bridge",
+      args: ["stdio"]
+    })

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.ThunderEagle/context-bridge",
+  "version": "1.0.2",
+  "title": "ContextBridge",
+  "description": "Zero-dependency MCP memory server for AI coding assistants. Runs as a Windows Service with in-process ONNX embeddings and SQLite vector search.",
+  "websiteUrl": "https://github.com/ThunderEagle/context-bridge",
+  "repository": {
+    "url": "https://github.com/ThunderEagle/context-bridge",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "nuget",
+      "identifier": "ThunderEagle.ContextBridge",
+      "version": "1.0.2",
+      "runtimeHint": "dnx",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": ["stdio"]
+    }
+  ]
+}
