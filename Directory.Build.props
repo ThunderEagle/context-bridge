@@ -16,7 +16,7 @@
     <Company>ThunderEagle</Company>
     <Copyright>Copyright © 2026 Scott Williams</Copyright>
     <RepositoryUrl>https://github.com/ThunderEagle/context-bridge</RepositoryUrl>
-    <PackageLicense>MIT</PackageLicense>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <!-- PackageId is set per-project; only ContextBridge.Service is published as a dotnet tool -->
   </PropertyGroup>
 </Project>
